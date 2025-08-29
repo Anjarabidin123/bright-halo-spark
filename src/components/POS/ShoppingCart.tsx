@@ -68,10 +68,13 @@ export const ShoppingCart = ({
     }
   };
 
-  const handleCheckoutAndPrint = () => {
+  const handlePrintConfirm = () => {
     const receipt = processTransaction(paymentMethod, discountAmount);
     if (receipt) {
-      onPrintThermal(receipt);
+      const confirmPrint = window.confirm('Apakah Anda yakin ingin mencetak nota?');
+      if (confirmPrint) {
+        onPrintThermal(receipt);
+      }
       setPaymentMethod('cash');
       setDiscount(0);
       setDiscountType('amount');
@@ -80,12 +83,12 @@ export const ShoppingCart = ({
 
   if (cart.length === 0) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-2 sm:space-y-4">
         <Card className="pos-card h-fit">
-          <CardHeader className="text-center py-8">
-            <CartIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <CardTitle className="text-muted-foreground">Keranjang Kosong</CardTitle>
-            <p className="text-sm text-muted-foreground">
+          <CardHeader className="text-center py-4 sm:py-8 p-3 sm:p-6">
+            <CartIcon className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mx-auto mb-2 sm:mb-4" />
+            <CardTitle className="text-muted-foreground text-sm sm:text-base">Keranjang Kosong</CardTitle>
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Pilih produk untuk memulai transaksi
             </p>
           </CardHeader>
@@ -138,39 +141,39 @@ export const ShoppingCart = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2 sm:space-y-4">
       <Card className="pos-card h-fit">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center justify-between">
+        <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
+          <CardTitle className="flex items-center justify-between text-sm sm:text-base">
             <div 
-              className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"
+              className="flex items-center gap-1 sm:gap-2 cursor-pointer hover:text-primary transition-colors"
               onClick={() => navigate('/cart')}
             >
-              <CartIcon className="h-5 w-5" />
+              <CartIcon className="h-4 w-4 sm:h-5 sm:w-5" />
               Keranjang
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">{cart.length} item</Badge>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Badge variant="secondary" className="text-xs">{cart.length} item</Badge>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => navigate('/cart')}
-                className="h-6"
+                className="h-5 w-5 sm:h-6 sm:w-6 p-0"
               >
-                <ExternalLink className="h-3 w-3" />
+                <ExternalLink className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
               </Button>
             </div>
           </CardTitle>
         </CardHeader>
         
-        <CardContent className="space-y-4">
-          <div className="max-h-32 overflow-y-auto space-y-3">
+        <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
+          <div className="max-h-48 sm:max-h-64 lg:max-h-80 overflow-y-auto space-y-3 border rounded-lg p-2 bg-secondary/20">
             {cart.map((item, index) => (
-              <div key={`${item.product.id}-${item.finalPrice || 'default'}-${index}`} className="pos-cart-item">
+              <div key={`${item.product.id}-${item.finalPrice || 'default'}-${index}`} className="pos-cart-item min-h-[80px] sm:min-h-[100px]">
                 <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-1 sm:mb-2">
                     <h4 
-                      className="font-medium text-sm cursor-pointer hover:text-primary transition-colors" 
+                      className="font-medium text-xs sm:text-sm cursor-pointer hover:text-primary transition-colors leading-tight" 
                       onClick={(e) => {
                         e.stopPropagation();
                         console.log(`Produk: ${item.product.name}, Qty: ${item.quantity}, Harga: ${formatPrice(item.finalPrice || item.product.sellPrice)}`);
@@ -182,15 +185,15 @@ export const ShoppingCart = ({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-6 w-6 p-0"
+                        className="h-5 w-5 sm:h-6 sm:w-6 p-0"
                         onClick={() => setEditingPrice(editingPrice === item.product.id ? null : item.product.id)}
                       >
-                        <Edit className="h-3 w-3" />
+                        <Edit className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                       </Button>
                     )}
                   </div>
                   
-                  <div className="text-xs text-muted-foreground mb-2">
+                  <div className="text-xs text-muted-foreground mb-2 sm:mb-3">
                     {formatPrice(item.finalPrice || item.product.sellPrice)} × {item.quantity}
                   </div>
                   
@@ -211,8 +214,8 @@ export const ShoppingCart = ({
                   />
                 </div>
                 
-                <div className="text-right">
-                  <div className="font-semibold text-lg">
+                <div className="text-right ml-2">
+                  <div className="font-semibold text-sm sm:text-lg">
                     {formatPrice((item.finalPrice || item.product.sellPrice) * item.quantity)}
                   </div>
                 </div>
@@ -222,11 +225,11 @@ export const ShoppingCart = ({
 
           <Separator />
           
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Metode Pembayaran</Label>
+          <div className="space-y-3 sm:space-y-4">
+            <div className="space-y-1 sm:space-y-2">
+              <Label className="text-xs sm:text-sm font-medium">Metode Pembayaran</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8 sm:h-10 text-xs sm:text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -238,14 +241,14 @@ export const ShoppingCart = ({
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                <Percent className="w-4 h-4" />
+            <div className="space-y-1 sm:space-y-2">
+              <Label className="text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2">
+                <Percent className="w-3 h-3 sm:w-4 sm:h-4" />
                 Diskon
               </Label>
               <div className="flex gap-2">
                 <Select value={discountType} onValueChange={(value: 'amount' | 'percent') => setDiscountType(value)}>
-                  <SelectTrigger className="w-24">
+                  <SelectTrigger className="w-16 sm:w-24 h-8 sm:h-10 text-xs sm:text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -260,50 +263,51 @@ export const ShoppingCart = ({
                   onChange={(e) => setDiscount(Number(e.target.value) || 0)}
                   min="0"
                   max={discountType === 'percent' ? 100 : subtotal}
+                  className="h-8 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
             </div>
           </div>
           
-          <div className="space-y-3 pt-4 border-t">
-            <div className="flex justify-between text-lg">
+          <div className="space-y-2 sm:space-y-3 pt-3 sm:pt-4 border-t">
+            <div className="flex justify-between text-sm sm:text-lg">
               <span>Subtotal:</span>
               <span>{formatPrice(subtotal)}</span>
             </div>
             {discountAmount > 0 && (
-              <div className="flex justify-between text-lg text-destructive">
+              <div className="flex justify-between text-sm sm:text-lg text-destructive">
                 <span>Diskon:</span>
                 <span>-{formatPrice(discountAmount)}</span>
               </div>
             )}
-            <div className="flex justify-between text-xl font-bold">
+            <div className="flex justify-between text-lg sm:text-xl font-bold">
               <span>Total:</span>
               <span className="text-primary">{formatPrice(total)}</span>
             </div>
           </div>
           
-          <div className="space-y-2 pt-2">
+          <div className="space-y-1.5 sm:space-y-2 pt-2">
             <Button 
-              className="w-full"
+              className="w-full h-8 sm:h-10 text-xs sm:text-sm"
               variant="success"
               onClick={handleCheckout}
             >
-              <CreditCard className="w-4 h-4 mr-2" />
+              <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
               Checkout
             </Button>
             
             <Button 
-              className="w-full"
+              className="w-full h-8 sm:h-10 text-xs sm:text-sm"
               variant="default"
-              onClick={handleCheckoutAndPrint}
+              onClick={handlePrintConfirm}
             >
-              <Printer className="w-4 h-4 mr-2" />
+              <Printer className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
               Print Nota
             </Button>
             
             <Button 
               variant="outline" 
-              className="w-full"
+              className="w-full h-8 sm:h-10 text-xs sm:text-sm"
               onClick={clearCart}
             >
               Kosongkan Keranjang

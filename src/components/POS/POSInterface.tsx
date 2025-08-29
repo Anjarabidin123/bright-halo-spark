@@ -170,25 +170,25 @@ Profit: ${formatPrice(receipt.profit)}
     .reduce((sum, receipt) => sum + receipt.profit, 0);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen w-full bg-background">
       {/* Header */}
-      <header className="border-b bg-card shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+      <header className="border-b bg-card shadow-sm w-full">
+        <div className="w-full px-2 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Store className="h-8 w-8 text-primary" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Store className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
               <div>
-                <h1 className="text-2xl font-bold">Kasir Toko Anjar </h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className="text-lg sm:text-2xl font-bold">Kasir Toko Anjar</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
                   Jalan Gajah - Dempet (Depan Koramil)
                 </p>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
-              <div className="text-right text-sm">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className="text-right text-xs sm:text-sm">
                 <div className="font-semibold">Admin Kasir</div>
-                <div className="text-muted-foreground">
+                <div className="text-muted-foreground hidden sm:block">
                   {new Date().toLocaleDateString('id-ID')}
                 </div>
               </div>
@@ -198,8 +198,8 @@ Profit: ${formatPrice(receipt.profit)}
       </header>
 
       {/* Dashboard Stats */}
-      <div className="max-w-7xl mx-auto p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="w-full px-2 sm:px-4 py-2 sm:py-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
           <Card className="pos-card cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleDashboardClick('revenue')}>
             <CardContent className="flex items-center p-4">
               <DollarSign className="h-8 w-8 text-success mr-3" />
@@ -246,37 +246,37 @@ Profit: ${formatPrice(receipt.profit)}
         </div>
 
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="pos">Kasir</TabsTrigger>
-            <TabsTrigger value="add-product">Tambah Produk</TabsTrigger>
-            <TabsTrigger value="stock-management">Manajemen Stok</TabsTrigger>
-            <TabsTrigger value="low-stock">Stok Menipis</TabsTrigger>
-            <TabsTrigger value="receipt">Nota Terakhir</TabsTrigger>
-            <TabsTrigger value="reports">Laporan</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 gap-1 h-auto p-1">
+            <TabsTrigger value="pos" className="text-xs sm:text-sm p-2 sm:p-3">Kasir</TabsTrigger>
+            <TabsTrigger value="add-product" className="text-xs sm:text-sm p-2 sm:p-3">+ Produk</TabsTrigger>
+            <TabsTrigger value="stock-management" className="text-xs sm:text-sm p-2 sm:p-3">Stok</TabsTrigger>
+            <TabsTrigger value="low-stock" className="text-xs sm:text-sm p-2 sm:p-3">⚠ Stok</TabsTrigger>
+            <TabsTrigger value="receipt" className="text-xs sm:text-sm p-2 sm:p-3">Nota</TabsTrigger>
+            <TabsTrigger value="reports" className="text-xs sm:text-sm p-2 sm:p-3">Laporan</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="pos" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-4">
+          <TabsContent value="pos" className="space-y-2 sm:space-y-4 mt-2 sm:mt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
+              <div className="lg:col-span-2 space-y-2 sm:space-y-4">
                 <Card className="pos-card">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center justify-between">
+                  <CardHeader className="pb-2 sm:pb-3">
+                    <CardTitle className="flex items-center justify-between text-sm sm:text-base">
                       <div className="flex items-center gap-2">
-                        <Package className="h-5 w-5" />
+                        <Package className="h-4 w-4 sm:h-5 sm:w-5" />
                         Daftar Produk
                       </div>
-                      <Badge variant="secondary">{filteredProducts.length} produk</Badge>
+                      <Badge variant="secondary" className="text-xs">{filteredProducts.length} produk</Badge>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="mb-4">
+                  <CardContent className="p-3 sm:p-6">
+                    <div className="mb-3 sm:mb-4">
                       <div className="relative">
-                        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Search className="absolute left-3 top-2.5 sm:top-3 h-4 w-4 text-muted-foreground" />
                         <Input
                           placeholder="Cari produk..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                          className="pl-9"
+                          className="pl-9 h-8 sm:h-10 text-sm"
                         />
                       </div>
                     </div>
@@ -289,7 +289,7 @@ Profit: ${formatPrice(receipt.profit)}
                 </Card>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-2 sm:space-y-4">
                 <ShoppingCart
                   cart={cart}
                   updateCartQuantity={updateCartQuantity}
