@@ -1,13 +1,58 @@
+import { useEffect } from 'react';
 import { Receipt as ReceiptType } from '@/types/pos';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Download } from 'lucide-react';
+import { Printer, Download, Bluetooth } from 'lucide-react';
+import { thermalPrinter } from '@/lib/thermal-printer';
+import { toast } from 'sonner';
 
 interface ReceiptProps {
   receipt: ReceiptType;
   formatPrice: (price: number) => string;
 }
+
+const formatThermalReceipt = (receipt: ReceiptType, formatPrice: (price: number) => string): string => {
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('id-ID', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
+  };
+
+  return `
+===============================
+    KASIR FOTOCOPY & ATK
+===============================
+Invoice: ${receipt.id}
+Tanggal: ${formatDate(receipt.timestamp)}
+-------------------------------
+
+${receipt.items.map(item => {
+  const price = item.finalPrice || item.product.sellPrice;
+  const total = price * item.quantity;
+  const line1 = item.product.name;
+  const line2 = `${item.quantity} x ${formatPrice(price)}`;
+  const line3 = formatPrice(total).padStart(31);
+  return `${line1}\n${line2}\n${line3}`;
+}).join('\n\n')}
+
+-------------------------------
+Subtotal:${formatPrice(receipt.subtotal).padStart(20)}${receipt.discount > 0 ? `\nDiskon:${formatPrice(receipt.discount).padStart(22)}` : ''}
+TOTAL:${formatPrice(receipt.total).padStart(23)}
+
+Metode: ${receipt.paymentMethod?.toUpperCase() || 'CASH'}
+Profit: ${formatPrice(receipt.profit)}
+
+===============================
+    TERIMA KASIH ATAS
+    KUNJUNGAN ANDA!
+===============================
+`;
+};
 
 export const Receipt = ({ receipt, formatPrice }: ReceiptProps) => {
   const formatDate = (date: Date) => {
@@ -18,6 +63,48 @@ export const Receipt = ({ receipt, formatPrice }: ReceiptProps) => {
       hour: '2-digit',
       minute: '2-digit',
     }).format(date);
+  };
+
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        handleThermalPrint();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [receipt]);
+
+  const handleThermalPrint = async () => {
+    try {
+      const thermalContent = formatThermalReceipt(receipt, formatPrice);
+      const success = await thermalPrinter.print(thermalContent);
+      
+      if (success) {
+        toast.success('Nota berhasil dicetak!');
+      } else {
+        toast.error('Gagal mencetak nota. Pastikan printer terhubung.');
+      }
+    } catch (error) {
+      console.error('Print error:', error);
+      toast.error('Terjadi kesalahan saat mencetak.');
+    }
+  };
+
+  const handleConnectPrinter = async () => {
+    try {
+      const connected = await thermalPrinter.connect();
+      if (connected) {
+        toast.success('Printer bluetooth terhubung!');
+      } else {
+        toast.error('Gagal menghubungkan printer bluetooth.');
+      }
+    } catch (error) {
+      console.error('Connection error:', error);
+      toast.error('Terjadi kesalahan saat menghubungkan printer.');
+    }
   };
 
   const handlePrint = () => {
@@ -170,12 +257,34 @@ export const Receipt = ({ receipt, formatPrice }: ReceiptProps) => {
       </CardContent>
 
       <div className="p-4 space-y-2">
+        <div className="bg-muted/50 p-3 rounded-lg text-center text-sm text-muted-foreground mb-3">
+          Tekan <kbd className="bg-background px-2 py-1 rounded border">Enter</kbd> untuk print otomatis
+        </div>
+        
         <Button 
+          className="w-full"
+          onClick={handleThermalPrint}
+        >
+          <Printer className="w-4 h-4 mr-2" />
+          Print Thermal (Enter)
+        </Button>
+
+        <Button 
+          variant="outline"
+          className="w-full"
+          onClick={handleConnectPrinter}
+        >
+          <Bluetooth className="w-4 h-4 mr-2" />
+          {thermalPrinter.isConnected() ? 'Printer Terhubung' : 'Hubungkan Bluetooth'}
+        </Button>
+        
+        <Button 
+          variant="outline"
           className="w-full"
           onClick={handlePrint}
         >
           <Printer className="w-4 h-4 mr-2" />
-          Print Struk
+          Print Browser
         </Button>
         
         <Button 

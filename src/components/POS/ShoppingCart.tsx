@@ -68,13 +68,10 @@ export const ShoppingCart = ({
     }
   };
 
-  const handlePrintConfirm = () => {
+  const handlePrintToReceipt = () => {
     const receipt = processTransaction(paymentMethod, discountAmount);
     if (receipt) {
-      const confirmPrint = window.confirm('Apakah Anda yakin ingin mencetak nota?');
-      if (confirmPrint) {
-        onPrintThermal(receipt);
-      }
+      onViewReceipt?.(receipt);
       setPaymentMethod('cash');
       setDiscount(0);
       setDiscountType('amount');
@@ -299,7 +296,7 @@ export const ShoppingCart = ({
             <Button 
               className="w-full h-8 sm:h-10 text-xs sm:text-sm"
               variant="default"
-              onClick={handlePrintConfirm}
+              onClick={handlePrintToReceipt}
             >
               <Printer className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
               Print Nota
