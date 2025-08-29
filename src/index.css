@@ -2,41 +2,74 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* POS System Design System - Professional cashier interface colors and styles */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* POS Background colors */
+    --background: 240 10% 98%;
+    --foreground: 220 15% 15%;
 
+    /* Card and surface colors */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 220 15% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 220 15% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* POS Primary - Professional blue */
+    --primary: 214 95% 45%;
+    --primary-foreground: 0 0% 98%;
+    --primary-light: 214 95% 65%;
+    --primary-glow: 214 95% 80%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* POS Success - Transaction success green */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
+    --success-light: 142 69% 58%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* POS Warning - Attention orange */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* POS Error - Alert red */
+    --error: 0 84% 60%;
+    --error-foreground: 0 0% 98%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Secondary and muted colors */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 15% 25%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 8% 46%;
 
-    --radius: 0.5rem;
+    --accent: 220 14% 96%;
+    --accent-foreground: 220 15% 25%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Border and input colors */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 214 95% 45%;
+
+    --radius: 0.75rem;
+
+    /* POS Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
+    --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success-light)));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(220 14% 98%));
+
+    /* POS Shadows */
+    --shadow-soft: 0 2px 8px -2px hsl(220 15% 15% / 0.1);
+    --shadow-medium: 0 4px 16px -4px hsl(220 15% 15% / 0.15);
+    --shadow-strong: 0 8px 32px -8px hsl(220 15% 15% / 0.2);
+    --shadow-primary: 0 4px 16px -4px hsl(var(--primary) / 0.3);
+
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-quick: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 
     --sidebar-background: 0 0% 98%;
 
@@ -100,6 +133,62 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+  }
+}
+
+@layer components {
+  /* POS Component Classes */
+  .pos-card {
+    @apply bg-card border border-border rounded-xl shadow-[var(--shadow-soft)] transition-[var(--transition-smooth)];
+  }
+
+  .pos-card-hover {
+    @apply hover:shadow-[var(--shadow-medium)] hover:-translate-y-0.5;
+  }
+
+  .pos-button-primary {
+    @apply bg-[var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-primary)] transition-[var(--transition-smooth)] hover:shadow-[var(--shadow-strong)] active:scale-95;
+  }
+
+  .pos-button-success {
+    @apply bg-[var(--gradient-success)] text-success-foreground shadow-[var(--shadow-soft)] transition-[var(--transition-smooth)] hover:shadow-[var(--shadow-medium)] active:scale-95;
+  }
+
+  .pos-receipt {
+    @apply bg-card border border-border rounded-lg p-4 font-mono text-sm space-y-2;
+  }
+
+  .pos-item-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+
+  .pos-cart-item {
+    @apply flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border transition-[var(--transition-quick)] hover:bg-secondary/70;
+  }
+
+  /* Print styles */
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    
+    .printable, .printable * {
+      visibility: visible;
+    }
+    
+    .printable {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+    }
+
+    .pos-receipt {
+      box-shadow: none;
+      border: none;
+      margin: 0;
+      padding: 20px;
+    }
   }
 }
