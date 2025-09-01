@@ -270,11 +270,7 @@ export const usePOS = () => {
   }, [posState]);
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(price);
+    return `Rp ${new Intl.NumberFormat('id-ID').format(price)}`;
   };
 
   return {

@@ -8,6 +8,8 @@ import { SalesReport } from './SalesReport';
 import { PhotocopyDialog } from './PhotocopyDialog';
 import { StockManagement } from './StockManagement';
 import { ReceiptHistory } from './ReceiptHistory';
+import { ManualInvoice } from './ManualInvoice';
+import { ShoppingList } from './ShoppingList';
 import { usePOSContext } from '@/contexts/POSContext';
 import { Receipt as ReceiptType, Product } from '@/types/pos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +41,7 @@ export const POSInterface = () => {
     removeFromCart,
     clearCart,
     processTransaction,
+    addManualReceipt,
     formatPrice,
   } = usePOSContext();
 
@@ -83,11 +86,20 @@ export const POSInterface = () => {
     setCurrentTab('receipt');
   };
 
+  const handleManualInvoice = (receipt: ReceiptType) => {
+    // Add manual invoice to receipts
+    addManualReceipt(receipt);
+    
+    // View the created receipt
+    setSelectedReceipt(receipt);
+    setCurrentTab('receipt');
+  };
+
   const handlePrintThermal = (receipt: ReceiptType) => {
     // Thermal printing implementation
     const printContent = `
 ===============================
-   KASIR FOTOCOPY & ATK
+   TOKO ANJAR
 ===============================
 Invoice: ${receipt.id}
 Tanggal: ${new Date(receipt.timestamp).toLocaleDateString('id-ID')}
@@ -110,7 +122,7 @@ Profit: ${formatPrice(receipt.profit)}
 
 ===============================
     TERIMA KASIH ATAS
-    KUNJUNGAN ANDA!
+    KUNJUNGAN ANDAAAAAAAA!
 ===============================
 `;
 
@@ -246,8 +258,10 @@ Profit: ${formatPrice(receipt.profit)}
         </div>
 
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 gap-1 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 gap-1 h-auto p-1">
             <TabsTrigger value="pos" className="text-xs sm:text-sm p-2 sm:p-3">Kasir</TabsTrigger>
+            <TabsTrigger value="manual-invoice" className="text-xs sm:text-sm p-2 sm:p-3">Nota Manual</TabsTrigger>
+            <TabsTrigger value="shopping-list" className="text-xs sm:text-sm p-2 sm:p-3">Daftar Belanja</TabsTrigger>
             <TabsTrigger value="add-product" className="text-xs sm:text-sm p-2 sm:p-3">+ Produk</TabsTrigger>
             <TabsTrigger value="stock-management" className="text-xs sm:text-sm p-2 sm:p-3">Stok</TabsTrigger>
             <TabsTrigger value="low-stock" className="text-xs sm:text-sm p-2 sm:p-3">⚠ Stok</TabsTrigger>
@@ -300,6 +314,8 @@ Profit: ${formatPrice(receipt.profit)}
                   onPrintThermal={handlePrintThermal}
                   onViewReceipt={handleViewReceipt}
                   receipts={receipts}
+                  products={products}
+                  onAddToCart={addToCart}
                 />
               </div>
             </div>
@@ -323,13 +339,29 @@ Profit: ${formatPrice(receipt.profit)}
             />
           </TabsContent>
 
+          <TabsContent value="manual-invoice" className="space-y-4">
+            <ManualInvoice 
+              onCreateInvoice={handleManualInvoice}
+              formatPrice={formatPrice}
+              receipts={receipts}
+            />
+          </TabsContent>
+
+          <TabsContent value="shopping-list" className="space-y-4">
+            <ShoppingList />
+          </TabsContent>
+
           <TabsContent value="add-product" className="space-y-4">
             <AddProductForm onAddProduct={addProduct} onClose={() => {}} />
           </TabsContent>
 
           <TabsContent value="receipt" className="space-y-4">
             {selectedReceipt ? (
-              <Receipt receipt={selectedReceipt} formatPrice={formatPrice} />
+              <Receipt 
+                receipt={selectedReceipt} 
+                formatPrice={formatPrice} 
+                onBack={() => setSelectedReceipt(null)}
+              />
             ) : (
               <ReceiptHistory 
                 receipts={receipts}

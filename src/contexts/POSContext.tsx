@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useState } from 'react';
 import { usePOS } from '@/hooks/usePOS';
 import { CartItem, Product, Receipt } from '@/types/pos';
 
@@ -13,6 +13,7 @@ interface POSContextType {
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
   processTransaction: (paymentMethod?: string, discount?: number) => Receipt | null;
+  addManualReceipt: (receipt: Receipt) => void;
   formatPrice: (price: number) => string;
 }
 
@@ -20,9 +21,22 @@ const POSContext = createContext<POSContextType | undefined>(undefined);
 
 export const POSProvider = ({ children }: { children: ReactNode }) => {
   const posHook = usePOS();
+  const [manualReceipts, setManualReceipts] = useState<Receipt[]>([]);
+
+  const addManualReceipt = (receipt: Receipt) => {
+    setManualReceipts(prev => [...prev, receipt]);
+  };
+
+  const allReceipts = [...posHook.receipts, ...manualReceipts];
+
+  const contextValue = {
+    ...posHook,
+    receipts: allReceipts,
+    addManualReceipt,
+  };
 
   return (
-    <POSContext.Provider value={posHook}>
+    <POSContext.Provider value={contextValue}>
       {children}
     </POSContext.Provider>
   );

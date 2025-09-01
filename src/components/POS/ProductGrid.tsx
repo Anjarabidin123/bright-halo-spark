@@ -72,15 +72,17 @@ export const ProductGrid = ({ products, onAddToCart, onPhotocopyClick }: Product
                   </div>
                 )}
                 {product.isPhotocopy && (
-                  <div className="text-right text-xs text-muted-foreground">
-                    <div>Tiered Pricing:</div>
+                  <p><p><p><p></p><div className="text-right text-xs text-muted-foreground">
+                    <div>Harga : </div>
                     <div>150+ = Rp285</div>
                     <div>400+ = Rp275</div>
                     <div>1000+ = Rp260</div>
-                  </div>
+                  </div></p></p></p>
                 )}
               </div>
-              
+              <p></p>
+              <p></p>
+
               {product.isPhotocopy ? (
                 <Button 
                   className="w-full"
@@ -89,10 +91,12 @@ export const ProductGrid = ({ products, onAddToCart, onPhotocopyClick }: Product
                     onPhotocopyClick(product);
                   }}
                 >
+                 
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Tambah Fotocopy
                 </Button>
               ) : (
+               
                 <div className="space-y-2">
                   <QuantitySelector
                     quantity={quantities[product.id] || 0}

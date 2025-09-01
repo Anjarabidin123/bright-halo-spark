@@ -9,8 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart as CartIcon, Trash2, CreditCard, Percent, Printer, Edit, ExternalLink } from 'lucide-react';
+import { ShoppingCart as CartIcon, Trash2, CreditCard, Percent, Printer, Edit, ExternalLink, Bluetooth, Plus } from 'lucide-react';
+import { thermalPrinter } from '@/lib/thermal-printer';
+import { formatThermalReceipt } from '@/lib/receipt-formatter';
+import { toast } from 'sonner';
 import { QuantitySelector } from './QuantitySelector';
+import { QuickProductSearch } from './QuickProductSearch';
+import { Product } from '@/types/pos';
 
 interface ShoppingCartProps {
   cart: CartItem[];
@@ -22,6 +27,8 @@ interface ShoppingCartProps {
   onPrintThermal: (receipt: ReceiptType) => void;
   onViewReceipt?: (receipt: ReceiptType) => void;
   receipts?: ReceiptType[];
+  products?: Product[];
+  onAddToCart?: (product: Product, quantity?: number) => void;
 }
 
 export const ShoppingCart = ({
@@ -33,7 +40,9 @@ export const ShoppingCart = ({
   formatPrice,
   onPrintThermal,
   onViewReceipt,
-  receipts = []
+  receipts = [],
+  products = [],
+  onAddToCart
 }: ShoppingCartProps) => {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [discount, setDiscount] = useState(0);
@@ -78,6 +87,28 @@ export const ShoppingCart = ({
     }
   };
 
+  const handleThermalPrint = async () => {
+    const receipt = processTransaction(paymentMethod, discountAmount);
+    if (receipt) {
+      try {
+        const thermalContent = formatThermalReceipt(receipt, formatPrice);
+        const success = await thermalPrinter.print(thermalContent);
+        
+        if (success) {
+          toast.success('Nota berhasil dicetak!');
+          setPaymentMethod('cash');
+          setDiscount(0);
+          setDiscountType('amount');
+        } else {
+          toast.error('Gagal mencetak nota. Pastikan printer terhubung.');
+        }
+      } catch (error) {
+        console.error('Print error:', error);
+        toast.error('Terjadi kesalahan saat mencetak.');
+      }
+    }
+  };
+
   if (cart.length === 0) {
     return (
       <div className="space-y-2 sm:space-y-4">
@@ -101,8 +132,8 @@ export const ShoppingCart = ({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {receipts.slice(-3).reverse().map((receipt) => (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {receipts.slice(-8).reverse().map((receipt) => (
                   <div 
                     key={receipt.id}
                     className="flex flex-col p-2 bg-secondary/50 rounded border cursor-pointer hover:bg-secondary/70 transition-colors"
@@ -154,6 +185,15 @@ export const ShoppingCart = ({
               <Button
                 size="sm"
                 variant="outline"
+                onClick={handleThermalPrint}
+                className="h-5 w-5 sm:h-6 sm:w-6 p-0"
+                title="Print Thermal"
+              >
+                <Printer className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => navigate('/cart')}
                 className="h-5 w-5 sm:h-6 sm:w-6 p-0"
               >
@@ -164,6 +204,17 @@ export const ShoppingCart = ({
         </CardHeader>
         
         <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
+          {/* Quick Product Search */}
+          {products.length > 0 && onAddToCart && (
+            <div className="mb-3">
+              <QuickProductSearch 
+                products={products}
+                onAddToCart={onAddToCart}
+                formatPrice={formatPrice}
+              />
+            </div>
+          )}
+
           <div className="max-h-48 sm:max-h-64 lg:max-h-80 overflow-y-auto space-y-3 border rounded-lg p-2 bg-secondary/20">
             {cart.map((item, index) => (
               <div key={`${item.product.id}-${item.finalPrice || 'default'}-${index}`} className="pos-cart-item min-h-[80px] sm:min-h-[100px]">
@@ -323,8 +374,8 @@ export const ShoppingCart = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {receipts.slice(-3).reverse().map((receipt) => (
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {receipts.slice(-8).reverse().map((receipt) => (
                 <div 
                   key={receipt.id}
                   className="flex flex-col p-2 bg-secondary/50 rounded border cursor-pointer hover:bg-secondary/70 transition-colors"

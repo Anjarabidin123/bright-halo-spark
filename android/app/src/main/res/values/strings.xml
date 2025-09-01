@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">kak-ros-hello-world</string>
+    <string name="title_activity_main">kak-ros-hello-world</string>
+    <string name="package_name">app.lovable.bc79829a70164168911a446c693a79f5</string>
+    <string name="custom_url_scheme">app.lovable.bc79829a70164168911a446c693a79f5</string>
+</resources>

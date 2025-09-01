@@ -5,7 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ShoppingCart as CartIcon, ArrowLeft, Printer, CreditCard } from 'lucide-react';
+import { ShoppingCart as CartIcon, ArrowLeft, Printer, CreditCard, Bluetooth } from 'lucide-react';
+import { thermalPrinter } from '@/lib/thermal-printer';
+import { formatThermalReceipt, formatPrintReceipt } from '@/lib/receipt-formatter';
 import { usePOSContext } from '@/contexts/POSContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -44,69 +46,42 @@ export const CartView = () => {
     }
   };
 
-  const printReceipt = (receipt: ReceiptType) => {
-    const formatDate = (date: Date) => {
-      return new Intl.DateTimeFormat('id-ID', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(date);
-    };
+  const handleThermalPrint = async () => {
+    if (cart.length === 0) return;
+    
+    const receipt = processTransaction('cash', 0);
+    if (receipt) {
+      try {
+        const thermalContent = formatThermalReceipt(receipt, formatPrice);
+        const success = await thermalPrinter.print(thermalContent);
+        
+        if (success) {
+          toast({
+            title: "Berhasil",
+            description: "Nota berhasil dicetak ke thermal printer!",
+          });
+          clearCart();
+          navigate('/');
+        } else {
+          toast({
+            title: "Error",
+            description: "Gagal mencetak nota. Pastikan printer terhubung.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Print error:', error);
+        toast({
+          title: "Error", 
+          description: "Terjadi kesalahan saat mencetak.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
 
-    const printContent = `
-      <div style="font-family: monospace; max-width: 300px; margin: 0 auto;">
-        <div style="text-align: center; margin-bottom: 20px;">
-          <h2>TOKO ANJAR FOTOCOPY & ATK</h2>
-          <p>Jl. Raya Gajah - dempet (Depan Koramil Gajah)</p>
-          <p>Telp: (021) 1234-5678</p>
-        </div>
-        
-        <div style="text-align: center; margin-bottom: 20px;">
-          <h3>STRUK PENJUALAN</h3>
-          <p>${receipt.id}</p>
-          <p>${formatDate(receipt.timestamp)}</p>
-        </div>
-        
-        <div style="border-top: 1px dashed #000; margin: 20px 0; padding-top: 10px;">
-          ${receipt.items.map(item => `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-              <div>
-                <div style="font-weight: bold;">${item.product.name}</div>
-                <div style="font-size: 12px;">${formatPrice(item.finalPrice || item.product.sellPrice)} × ${item.quantity}</div>
-              </div>
-              <div style="font-weight: bold;">
-                ${formatPrice((item.finalPrice || item.product.sellPrice) * item.quantity)}
-              </div>
-            </div>
-          `).join('')}
-        </div>
-        
-        <div style="border-top: 1px dashed #000; margin: 20px 0; padding-top: 10px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-            <span>Subtotal:</span>
-            <span>${formatPrice(receipt.subtotal)}</span>
-          </div>
-          ${receipt.discount > 0 ? `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #dc2626;">
-              <span>Diskon:</span>
-              <span>-${formatPrice(receipt.discount)}</span>
-            </div>
-          ` : ''}
-          <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 18px; margin-top: 10px; border-top: 1px solid #000; padding-top: 10px;">
-            <span>TOTAL:</span>
-            <span>${formatPrice(receipt.total)}</span>
-          </div>
-        </div>
-        
-        <div style="text-align: center; margin-top: 30px; font-size: 12px;">
-          <p>Terima kasih atas kunjungan Anda!</p>
-          <p>Barang yang sudah dibeli tidak dapat dikembalikan</p>
-          <p style="margin-top: 10px;">Kasir: Admin | ${receipt.paymentMethod?.toUpperCase() || 'CASH'}</p>
-        </div>
-      </div>
-    `;
+  const printReceipt = (receipt: ReceiptType) => {
+    const printContent = formatPrintReceipt(receipt, formatPrice);
 
     const printWindow = window.open('', '_blank');
     if (printWindow) {
@@ -215,10 +190,18 @@ export const CartView = () => {
                     <Button 
                       variant="outline"
                       className="w-full" 
+                      onClick={handleThermalPrint}
+                    >
+                      <Printer className="h-4 w-4 mr-2" />
+                      Print Thermal
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      className="w-full" 
                       onClick={handlePrintReceipt}
                     >
                       <Printer className="h-4 w-4 mr-2" />
-                      Print Nota
+                      Print Browser
                     </Button>
                     <Button 
                       variant="secondary"
