@@ -290,6 +290,7 @@ export const ReceiptHistory = ({
                         variant="outline"
                         onClick={() => onPrintReceipt(receipt)}
                         className="h-7 px-2"
+                        title="Print Thermal"
                       >
                         <Printer className="h-3 w-3" />
                       </Button>

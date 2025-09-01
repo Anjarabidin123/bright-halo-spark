@@ -20,13 +20,15 @@ interface StockManagementProps {
   onUpdateProduct: (productId: string, updates: Partial<Product>) => void;
   formatPrice: (price: number) => string;
   showLowStockOnly?: boolean;
+  readOnly?: boolean;
 }
 
 export const StockManagement = ({ 
   products, 
   onUpdateProduct, 
   formatPrice,
-  showLowStockOnly = false 
+  showLowStockOnly = false,
+  readOnly = false
 }: StockManagementProps) => {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -163,7 +165,7 @@ export const StockManagement = ({
                   </Badge>
                 </div>
 
-                {!product.isPhotocopy && (
+                {!product.isPhotocopy && !readOnly && (
                   <div className="flex items-center gap-1">
                     <Button
                       size="sm"
@@ -186,7 +188,7 @@ export const StockManagement = ({
                 )}
               </div>
 
-              {!product.isPhotocopy && (
+              {!product.isPhotocopy && !readOnly && (
                 <div className="mt-3 p-3 bg-muted/50 rounded border">
                   <div className="text-xs font-medium mb-2">Tambah Stok:</div>
                   <div className="flex items-center gap-2">

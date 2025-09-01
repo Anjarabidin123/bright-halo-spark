@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Receipt as ReceiptIcon, CreditCard, Percent } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Trash2, Receipt as ReceiptIcon, CreditCard, Percent, Printer, Copy } from 'lucide-react';
 import { Receipt as ReceiptType } from '@/types/pos';
 import { toast } from 'sonner';
 
@@ -22,9 +23,10 @@ interface ManualInvoiceProps {
   onCreateInvoice: (receipt: ReceiptType) => void;
   formatPrice: (price: number) => string;
   receipts: ReceiptType[];
+  onPrintReceipt?: (receipt: ReceiptType) => void;
 }
 
-export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts }: ManualInvoiceProps) => {
+export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintReceipt }: ManualInvoiceProps) => {
   const [items, setItems] = useState<ManualItem[]>([]);
   const [currentItem, setCurrentItem] = useState({
     name: '',
@@ -34,23 +36,45 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts }: Manual
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<'amount' | 'percent'>('amount');
+  const [photocopyQuantity, setPhotocopyQuantity] = useState(0);
+  const [photocopyTotalPrice, setPhotocopyTotalPrice] = useState(0);
+  const [itemType, setItemType] = useState<'regular' | 'photocopy'>('regular');
 
   const addItem = () => {
-    if (!currentItem.name || currentItem.unitPrice <= 0 || currentItem.quantity <= 0) {
-      toast.error('Nama barang, jumlah, dan harga harus diisi!');
-      return;
+    if (itemType === 'regular') {
+      if (!currentItem.name || currentItem.unitPrice <= 0 || currentItem.quantity <= 0) {
+        toast.error('Nama barang, jumlah, dan harga harus diisi!');
+        return;
+      }
+
+      const newItem: ManualItem = {
+        id: Date.now().toString(),
+        name: currentItem.name,
+        quantity: currentItem.quantity,
+        unitPrice: currentItem.unitPrice,
+        total: currentItem.quantity * currentItem.unitPrice
+      };
+
+      setItems(prev => [...prev, newItem]);
+      setCurrentItem({ name: '', quantity: 0, unitPrice: 0 });
+    } else {
+      if (photocopyQuantity <= 0 || photocopyTotalPrice <= 0) {
+        toast.error('Jumlah fotocopy dan harga total harus diisi!');
+        return;
+      }
+
+      const newItem: ManualItem = {
+        id: Date.now().toString(),
+        name: `Fotocopy ${photocopyQuantity} lembar`,
+        quantity: photocopyQuantity,
+        unitPrice: photocopyTotalPrice / photocopyQuantity,
+        total: photocopyTotalPrice
+      };
+
+      setItems(prev => [...prev, newItem]);
+      setPhotocopyQuantity(0);
+      setPhotocopyTotalPrice(0);
     }
-
-    const newItem: ManualItem = {
-      id: Date.now().toString(),
-      name: currentItem.name,
-      quantity: currentItem.quantity,
-      unitPrice: currentItem.unitPrice,
-      total: currentItem.quantity * currentItem.unitPrice
-    };
-
-    setItems(prev => [...prev, newItem]);
-    setCurrentItem({ name: '', quantity: 0, unitPrice: 0 });
   };
 
   const removeItem = (id: string) => {
@@ -122,6 +146,7 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts }: Manual
     setPaymentMethod('cash');
     
     toast.success(`Nota manual ${invoiceId} berhasil dibuat!`);
+    return receipt;
   };
 
   return (
@@ -136,50 +161,99 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts }: Manual
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-2">
-                <Label htmlFor="itemName">Nama Barang</Label>
-                <Input
-                  id="itemName"
-                  placeholder="Masukkan nama barang..."
-                  value={currentItem.name}
-                  onChange={(e) => setCurrentItem(prev => ({ ...prev, name: e.target.value }))}
-                  onKeyDown={(e) => e.key === 'Enter' && addItem()}
-                />
-              </div>
-              <div>
-                <Label htmlFor="quantity">Jumlah</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="0"
-                  value={currentItem.quantity || ''}
-                  onChange={(e) => setCurrentItem(prev => ({ ...prev, quantity: Number(e.target.value) || 0 }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="unitPrice">Harga Satuan</Label>
-                <Input
-                  id="unitPrice"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={currentItem.unitPrice || ''}
-                  onChange={(e) => setCurrentItem(prev => ({ ...prev, unitPrice: Number(e.target.value) || 0 }))}
-                  onKeyDown={(e) => e.key === 'Enter' && addItem()}
-                />
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                Total: {formatPrice(currentItem.quantity * currentItem.unitPrice)}
-              </div>
-              <Button onClick={addItem} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Tambah Item
-              </Button>
-            </div>
+            <Tabs value={itemType} onValueChange={(value: 'regular' | 'photocopy') => setItemType(value)}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="regular">Barang Reguler</TabsTrigger>
+                <TabsTrigger value="photocopy">Fotocopy</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="regular" className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="md:col-span-2">
+                    <Label htmlFor="itemName">Nama Barang</Label>
+                    <Input
+                      id="itemName"
+                      placeholder="Masukkan nama barang..."
+                      value={currentItem.name}
+                      onChange={(e) => setCurrentItem(prev => ({ ...prev, name: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && addItem()}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="quantity">Jumlah</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="0"
+                      value={currentItem.quantity || ''}
+                      onChange={(e) => setCurrentItem(prev => ({ ...prev, quantity: Number(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="unitPrice">Harga Satuan</Label>
+                    <Input
+                      id="unitPrice"
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={currentItem.unitPrice || ''}
+                      onChange={(e) => setCurrentItem(prev => ({ ...prev, unitPrice: Number(e.target.value) || 0 }))}
+                      onKeyDown={(e) => e.key === 'Enter' && addItem()}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Total: {formatPrice(currentItem.quantity * currentItem.unitPrice)}
+                  </div>
+                  <Button onClick={addItem} size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Tambah Item
+                  </Button>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="photocopy" className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="photocopyQty">Jumlah Lembar</Label>
+                    <Input
+                      id="photocopyQty"
+                      type="number"
+                      min="0"
+                      value={photocopyQuantity || ''}
+                      onChange={(e) => setPhotocopyQuantity(Number(e.target.value) || 0)}
+                      placeholder="Masukkan jumlah lembar"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="photocopyTotal">Harga Total</Label>
+                    <Input
+                      id="photocopyTotal"
+                      type="number"
+                      min="0"
+                      value={photocopyTotalPrice || ''}
+                      onChange={(e) => setPhotocopyTotalPrice(Number(e.target.value) || 0)}
+                      placeholder="Masukkan harga total"
+                      onKeyDown={(e) => e.key === 'Enter' && addItem()}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    {photocopyQuantity > 0 && photocopyTotalPrice > 0 && (
+                      <>Harga per lembar: {formatPrice(photocopyTotalPrice / photocopyQuantity)}</>
+                    )}
+                  </div>
+                  <Button onClick={addItem} size="sm">
+                    <Copy className="h-4 w-4 mr-2" />
+                    Tambah Fotocopy
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
@@ -310,14 +384,32 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts }: Manual
               </div>
             </div>
 
-            <Button 
-              className="w-full" 
-              onClick={handleCreateInvoice}
-              disabled={items.length === 0}
-            >
-              <CreditCard className="w-4 h-4 mr-2" />
-              Buat Nota Manual
-            </Button>
+            <div className="space-y-2">
+              <Button 
+                className="w-full" 
+                onClick={handleCreateInvoice}
+                disabled={items.length === 0}
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                Buat Nota Manual
+              </Button>
+              
+              {items.length > 0 && (
+                <Button 
+                  variant="outline"
+                  className="w-full" 
+                  onClick={() => {
+                    const receipt = handleCreateInvoice();
+                    if (receipt && onPrintReceipt) {
+                      onPrintReceipt(receipt);
+                    }
+                  }}
+                >
+                  <Printer className="w-4 h-4 mr-2" />
+                  Buat & Print Nota
+                </Button>
+              )}
+            </div>
 
             <div className="text-xs text-muted-foreground text-center">
               Nota manual akan tercatat di laporan penjualan hari ini

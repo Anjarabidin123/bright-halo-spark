@@ -96,7 +96,7 @@ export const POSInterface = () => {
   };
 
   const handlePrintThermal = (receipt: ReceiptType) => {
-    // Thermal printing implementation
+    // Direct thermal printing for browser compatibility
     const printContent = `
 ===============================
    TOKO ANJAR
@@ -117,16 +117,16 @@ Subtotal: ${' '.repeat(20)}${formatPrice(receipt.subtotal)}${receipt.discount > 
 Diskon: ${' '.repeat(22)}${formatPrice(receipt.discount)}` : ''}
 TOTAL: ${' '.repeat(23)}${formatPrice(receipt.total)}
 
-Metode: ${receipt.paymentMethod.toUpperCase()}
+Metode: ${receipt.paymentMethod?.toUpperCase() || 'TUNAI'}
 Profit: ${formatPrice(receipt.profit)}
 
 ===============================
     TERIMA KASIH ATAS
-    KUNJUNGAN ANDAAAAAAAA!
+    KUNJUNGAN ANDA!
 ===============================
 `;
 
-    // Create a new window for thermal printing
+    // Optimized browser print for mobile
     const printWindow = window.open('', '_blank', 'width=300,height=600');
     if (printWindow) {
       printWindow.document.write(`
@@ -141,9 +141,11 @@ Profit: ${formatPrice(receipt.profit)}
                 margin: 0;
                 padding: 10px;
                 white-space: pre-line;
+                width: 280px;
               }
               @media print {
                 body { margin: 0; }
+                @page { size: 80mm auto; margin: 0; }
               }
             </style>
           </head>
@@ -181,6 +183,27 @@ Profit: ${formatPrice(receipt.profit)}
     })
     .reduce((sum, receipt) => sum + receipt.profit, 0);
 
+  // Photocopy earnings calculation
+  const todayPhotocopyEarnings = receipts
+    .filter(receipt => {
+      const today = new Date();
+      const receiptDate = new Date(receipt.timestamp);
+      return receiptDate.toDateString() === today.toDateString();
+    })
+    .reduce((sum, receipt) => {
+      const photocopyItems = receipt.items.filter(item => item.product.isPhotocopy || item.product.category === 'Fotocopy');
+      return sum + photocopyItems.reduce((itemSum, item) => itemSum + (item.finalPrice || item.product.sellPrice) * item.quantity, 0);
+    }, 0);
+
+  // Welcome message based on time
+  const getWelcomeMessage = () => {
+    const hour = new Date().getHours();
+    if (hour < 11) return "Selamat Pagi";
+    if (hour < 15) return "Selamat Siang"; 
+    if (hour < 19) return "Selamat Sore";
+    return "Selamat Malam";
+  };
+
   return (
     <div className="min-h-screen w-full bg-background">
       {/* Header */}
@@ -193,6 +216,9 @@ Profit: ${formatPrice(receipt.profit)}
                 <h1 className="text-lg sm:text-2xl font-bold">Kasir Toko Anjar</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
                   Jalan Gajah - Dempet (Depan Koramil)
+                </p>
+                <p className="text-xs sm:text-sm text-primary font-medium">
+                  {getWelcomeMessage()}, Admin Kasir
                 </p>
               </div>
             </div>
@@ -236,12 +262,14 @@ Profit: ${formatPrice(receipt.profit)}
             </CardContent>
           </Card>
           
-          <Card className="pos-card cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleDashboardClick('products')}>
+          <Card className="pos-card cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleDashboardClick('profit')}>
             <CardContent className="flex items-center p-4">
-              <Package className="h-8 w-8 text-warning mr-3" />
+              <BarChart3 className="h-8 w-8 text-info mr-3" />
               <div>
-                <div className="text-2xl font-bold">{totalProducts}</div>
-                <div className="text-sm text-muted-foreground">Total Produk</div>
+                <div className="text-2xl font-bold text-info">
+                  {formatPrice(todayPhotocopyEarnings)}
+                </div>
+                <div className="text-sm text-muted-foreground">Penghasilan Fotocopy</div>
               </div>
             </CardContent>
           </Card>
@@ -258,15 +286,14 @@ Profit: ${formatPrice(receipt.profit)}
         </div>
 
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 gap-1 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 gap-1 h-auto p-1">
             <TabsTrigger value="pos" className="text-xs sm:text-sm p-2 sm:p-3">Kasir</TabsTrigger>
             <TabsTrigger value="manual-invoice" className="text-xs sm:text-sm p-2 sm:p-3">Nota Manual</TabsTrigger>
             <TabsTrigger value="shopping-list" className="text-xs sm:text-sm p-2 sm:p-3">Daftar Belanja</TabsTrigger>
-            <TabsTrigger value="add-product" className="text-xs sm:text-sm p-2 sm:p-3">+ Produk</TabsTrigger>
-            <TabsTrigger value="stock-management" className="text-xs sm:text-sm p-2 sm:p-3">Stok</TabsTrigger>
-            <TabsTrigger value="low-stock" className="text-xs sm:text-sm p-2 sm:p-3">⚠ Stok</TabsTrigger>
+            <TabsTrigger value="stock" className="text-xs sm:text-sm p-2 sm:p-3">Stok</TabsTrigger>
             <TabsTrigger value="receipt" className="text-xs sm:text-sm p-2 sm:p-3">Nota</TabsTrigger>
             <TabsTrigger value="reports" className="text-xs sm:text-sm p-2 sm:p-3">Laporan</TabsTrigger>
+            <TabsTrigger value="admin" className="text-xs sm:text-sm p-2 sm:p-3">Admin</TabsTrigger>
           </TabsList>
 
           <TabsContent value="pos" className="space-y-2 sm:space-y-4 mt-2 sm:mt-4">
@@ -321,22 +348,33 @@ Profit: ${formatPrice(receipt.profit)}
             </div>
           </TabsContent>
 
-          <TabsContent value="stock-management" className="space-y-4">
-            <StockManagement 
-              products={products}
-              onUpdateProduct={updateProduct}
-              formatPrice={formatPrice}
-              showLowStockOnly={false}
-            />
-          </TabsContent>
-
-          <TabsContent value="low-stock" className="space-y-4">
-            <StockManagement 
-              products={products}
-              onUpdateProduct={updateProduct}
-              formatPrice={formatPrice}
-              showLowStockOnly={true}
-            />
+          <TabsContent value="stock" className="space-y-4">
+            <Tabs defaultValue="products" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="products">Stok Produk</TabsTrigger>
+                <TabsTrigger value="low-stock">Stok Menipis</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="products" className="space-y-4">
+                <StockManagement 
+                  products={products}
+                  onUpdateProduct={updateProduct}
+                  formatPrice={formatPrice}
+                  showLowStockOnly={false}
+                  readOnly={true}
+                />
+              </TabsContent>
+              
+              <TabsContent value="low-stock" className="space-y-4">
+                <StockManagement 
+                  products={products}
+                  onUpdateProduct={updateProduct}
+                  formatPrice={formatPrice}
+                  showLowStockOnly={true}
+                  readOnly={true}
+                />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="manual-invoice" className="space-y-4">
@@ -344,6 +382,7 @@ Profit: ${formatPrice(receipt.profit)}
               onCreateInvoice={handleManualInvoice}
               formatPrice={formatPrice}
               receipts={receipts}
+              onPrintReceipt={handlePrintThermal}
             />
           </TabsContent>
 
@@ -351,8 +390,32 @@ Profit: ${formatPrice(receipt.profit)}
             <ShoppingList />
           </TabsContent>
 
-          <TabsContent value="add-product" className="space-y-4">
-            <AddProductForm onAddProduct={addProduct} onClose={() => {}} />
+          <TabsContent value="admin" className="space-y-4">
+            <Tabs defaultValue="add-product" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="add-product">Tambah Produk</TabsTrigger>
+                <TabsTrigger value="stock-management">Kelola Stok</TabsTrigger>
+                <TabsTrigger value="advanced-reports">Laporan Lanjutan</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="add-product" className="space-y-4">
+                <AddProductForm onAddProduct={addProduct} onClose={() => {}} />
+              </TabsContent>
+              
+              <TabsContent value="stock-management" className="space-y-4">
+                <StockManagement 
+                  products={products}
+                  onUpdateProduct={updateProduct}
+                  formatPrice={formatPrice}
+                  showLowStockOnly={false}
+                  readOnly={false}
+                />
+              </TabsContent>
+              
+              <TabsContent value="advanced-reports" className="space-y-4">
+                <SalesReport receipts={receipts} formatPrice={formatPrice} />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="receipt" className="space-y-4">
@@ -374,7 +437,27 @@ Profit: ${formatPrice(receipt.profit)}
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-4">
-            <SalesReport receipts={receipts} formatPrice={formatPrice} />
+            <Card className="pos-card">
+              <CardHeader>
+                <CardTitle>Ringkasan Penjualan Hari Ini</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-primary/10 rounded-lg">
+                    <div className="text-2xl font-bold text-primary">{formatPrice(todayRevenue)}</div>
+                    <div className="text-sm text-muted-foreground">Total Penjualan</div>
+                  </div>
+                  <div className="text-center p-4 bg-success/10 rounded-lg">
+                    <div className="text-2xl font-bold text-success">{formatPrice(todayProfit)}</div>
+                    <div className="text-sm text-muted-foreground">Keuntungan</div>
+                  </div>
+                  <div className="text-center p-4 bg-info/10 rounded-lg">
+                    <div className="text-2xl font-bold text-info">{formatPrice(todayPhotocopyEarnings)}</div>
+                    <div className="text-sm text-muted-foreground">Fotocopy</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 
