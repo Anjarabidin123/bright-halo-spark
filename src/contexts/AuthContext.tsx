@@ -65,18 +65,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signInWithUsername = async (username: string, password: string) => {
-    // Find email by username
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('username', username)
-      .maybeSingle();
+    // Use RPC with SECURITY DEFINER to bypass RLS when not authenticated
+    const { data, error } = await supabase.rpc('get_user_by_username_or_email', {
+      identifier: username,
+    });
 
-    if (profileError || !profile?.email) {
+    if (error || !data || (Array.isArray(data) && data.length === 0)) {
       return { error: { message: 'Username tidak ditemukan' } };
     }
 
-    return signIn(profile.email, password);
+    const record = Array.isArray(data) ? data[0] : data;
+    if (!record?.email) {
+      return { error: { message: 'Username tidak ditemukan' } };
+    }
+
+    return signIn(record.email, password);
   };
 
   const signOut = async () => {
