@@ -55,31 +55,34 @@ export type Database = {
       }
       profiles: {
         Row: {
-          admin_password: string | null
           created_at: string
+          display_name: string | null
           email: string | null
           full_name: string | null
           id: string
+          is_admin: boolean | null
           updated_at: string
           user_id: string
           username: string | null
         }
         Insert: {
-          admin_password?: string | null
           created_at?: string
+          display_name?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
+          is_admin?: boolean | null
           updated_at?: string
           user_id: string
           username?: string | null
         }
         Update: {
-          admin_password?: string | null
           created_at?: string
+          display_name?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
+          is_admin?: boolean | null
           updated_at?: string
           user_id?: string
           username?: string | null
@@ -208,6 +211,15 @@ export type Database = {
       generate_invoice_number: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_user_by_username_or_email: {
+        Args: { identifier: string }
+        Returns: {
+          email: string
+          full_name: string
+          user_id: string
+          username: string
+        }[]
       }
       has_role: {
         Args: {

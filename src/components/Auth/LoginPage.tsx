@@ -20,6 +20,7 @@ export const LoginPage = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showSignUp, setShowSignUp] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
 
   useEffect(() => {
@@ -54,33 +55,113 @@ export const LoginPage = () => {
     setIsLoading(false);
   };
 
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    const { error } = await signUp(formData.email, formData.username, formData.password);
+    if (error) {
+      setError(error.message);
+    } else {
+      toast.success('Pendaftaran berhasil. Silakan cek email untuk konfirmasi.');
+      setShowSignUp(false);
+    }
+    setIsLoading(false);
+  };
+
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     try {
-      const { data, error } = await supabase.functions.invoke('reset-password', {
-        body: { email: resetEmail }
+      const redirectTo = `${window.location.origin}/login`;
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo,
       });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data.error) {
-        setError(data.error);
-      } else {
-        toast.success(data.message);
-        setShowForgotPassword(false);
-        setResetEmail('');
-      }
+      if (error) throw error;
+      toast.success('Email reset password telah dikirim. Periksa inbox Anda.');
+      setShowForgotPassword(false);
+      setResetEmail('');
     } catch (error: any) {
       setError(error.message || 'Terjadi kesalahan saat mengirim email reset password');
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (showSignUp) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-secondary/5 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold">Daftar Akun</CardTitle>
+            <CardDescription>
+              Buat akun baru untuk menggunakan aplikasi kasir
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSignUp} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="email@contoh.com"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="newUsername">Username</Label>
+                <Input
+                  id="newUsername"
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  placeholder="username"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">Password</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-2">
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? 'Mendaftarkan...' : 'Daftar'}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  className="w-full" 
+                  onClick={() => { setShowSignUp(false); setError(''); }}
+                >
+                  Kembali ke Login
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (showForgotPassword) {
     return (
@@ -191,6 +272,14 @@ export const LoginPage = () => {
                 onClick={() => setShowForgotPassword(true)}
               >
                 Lupa Password?
+              </Button>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                className="w-full text-sm" 
+                onClick={() => setShowSignUp(true)}
+              >
+                Buat Akun Baru
               </Button>
             </div>
           </form>
