@@ -143,8 +143,9 @@ export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) =
                   <QuantitySelector
                     quantity={stockQuantity}
                     productName={formData.name}
+                    category={formData.category}
                     onQuantityChange={setStockQuantity}
-                    showUnitSelector={formData.category === 'Kertas' ? false : true}
+                    showUnitSelector={true}
                   />
                 </div>
                 

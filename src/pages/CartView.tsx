@@ -21,10 +21,10 @@ export const CartView = () => {
     return sum + (price * item.quantity);
   }, 0);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) return;
     
-    const receipt = processTransaction('cash', 0);
+    const receipt = await processTransaction('cash', 0);
     if (receipt) {
       toast({
         title: "Transaksi Berhasil",
@@ -35,10 +35,10 @@ export const CartView = () => {
     }
   };
 
-  const handlePrintReceipt = () => {
+  const handlePrintReceipt = async () => {
     if (cart.length === 0) return;
     
-    const receipt = processTransaction('cash', 0);
+    const receipt = await processTransaction('cash', 0);
     if (receipt) {
       printReceipt(receipt);
       clearCart();
@@ -49,7 +49,7 @@ export const CartView = () => {
   const handleThermalPrint = async () => {
     if (cart.length === 0) return;
     
-    const receipt = processTransaction('cash', 0);
+    const receipt = await processTransaction('cash', 0);
     if (receipt) {
       try {
         const thermalContent = formatThermalReceipt(receipt, formatPrice);

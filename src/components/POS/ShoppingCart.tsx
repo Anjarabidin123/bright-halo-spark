@@ -22,7 +22,7 @@ interface ShoppingCartProps {
   updateCartQuantity: (productId: string, quantity: number, finalPrice?: number) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
-  processTransaction: (paymentMethod?: string, discount?: number) => ReceiptType | null;
+  processTransaction: (paymentMethod?: string, discount?: number) => ReceiptType | null | Promise<ReceiptType | null>;
   formatPrice: (price: number) => string;
   onPrintThermal: (receipt: ReceiptType) => void;
   onViewReceipt?: (receipt: ReceiptType) => void;
@@ -68,8 +68,8 @@ export const ShoppingCart = ({
     
   const total = Math.max(0, subtotal - discountAmount);
 
-  const handleCheckout = () => {
-    const receipt = processTransaction(paymentMethod, discountAmount);
+  const handleCheckout = async () => {
+    const receipt = await processTransaction(paymentMethod, discountAmount);
     if (receipt) {
       setPaymentMethod('cash');
       setDiscount(0);
@@ -77,8 +77,8 @@ export const ShoppingCart = ({
     }
   };
 
-  const handlePrintToReceipt = () => {
-    const receipt = processTransaction(paymentMethod, discountAmount);
+  const handlePrintToReceipt = async () => {
+    const receipt = await processTransaction(paymentMethod, discountAmount);
     if (receipt) {
       onViewReceipt?.(receipt);
       setPaymentMethod('cash');
@@ -88,7 +88,7 @@ export const ShoppingCart = ({
   };
 
   const handleThermalPrint = async () => {
-    const receipt = processTransaction(paymentMethod, discountAmount);
+    const receipt = await processTransaction(paymentMethod, discountAmount);
     if (receipt) {
       try {
         const thermalContent = formatThermalReceipt(receipt, formatPrice);
@@ -350,7 +350,7 @@ export const ShoppingCart = ({
               onClick={handlePrintToReceipt}
             >
               <Printer className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-              Print Nota
+              Buat Nota
             </Button>
             
             <Button 

@@ -40,24 +40,8 @@ export const Receipt = ({ receipt, formatPrice, onBack }: ReceiptProps) => {
 
   const handleThermalPrint = async () => {
     try {
-      // Detect mobile device
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
-      
-      if (isMobile) {
-        // Use browser print with full A4 format for mobile
-        handleMobileA4Print();
-        return;
-      }
-    
-      // Use thermal format for desktop
-      const thermalContent = formatThermalReceipt(receipt, formatPrice);
-      const success = await hybridThermalPrinter.print(thermalContent);
-      
-      if (success) {
-        toast.success(`Nota berhasil dicetak via ${hybridThermalPrinter.getPlatformInfo()}!`);
-      } else {
-        toast.error('Gagal mencetak nota. Pastikan printer terhubung.');
-      }
+      // Always use browser printing directly
+      handlePrint();
     } catch (error) {
       console.error('Print error:', error);
       toast.error('Terjadi kesalahan saat mencetak.');
@@ -236,25 +220,16 @@ export const Receipt = ({ receipt, formatPrice, onBack }: ReceiptProps) => {
           onClick={handleThermalPrint}
         >
           <Printer className="w-4 h-4 mr-2" />
-          Print Thermal (Enter)
+          Cetak Nota (Enter)
         </Button>
-
+        
         <Button 
           variant="outline"
           className="w-full"
           onClick={handleConnectPrinter}
         >
           <Bluetooth className="w-4 h-4 mr-2" />
-          {hybridThermalPrinter.isConnected() ? 'Printer Terhubung' : 'Hubungkan Bluetooth'}
-        </Button>
-        
-        <Button 
-          variant="outline"
-          className="w-full"
-          onClick={handlePrint}
-        >
-          <Printer className="w-4 h-4 mr-2" />
-          Print Browser
+          Sambungkan Bluetooth
         </Button>
         
         <Button 

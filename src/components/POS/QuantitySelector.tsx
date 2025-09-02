@@ -10,6 +10,7 @@ import { getUnitDisplay, getUnitOptions } from '@/lib/units';
 interface QuantitySelectorProps {
   quantity: number;
   productName?: string;
+  category?: string;
   maxStock?: number;
   onQuantityChange: (quantity: number) => void;
   onRemove?: () => void;
@@ -23,6 +24,7 @@ interface QuantitySelectorProps {
 export const QuantitySelector = ({
   quantity,
   productName,
+  category,
   maxStock,
   onQuantityChange,
   onRemove,
@@ -36,8 +38,8 @@ export const QuantitySelector = ({
   const [unitQuantity, setUnitQuantity] = useState(1);
   const [customPrice, setCustomPrice] = useState<string>('');
 
-  const unitOptions = getUnitOptions(productName);
-  const unitDisplay = getUnitDisplay(quantity, productName);
+  const unitOptions = getUnitOptions(productName, category);
+  const unitDisplay = getUnitDisplay(quantity, productName, category);
   const canEditPrice = allowBulkPricing && quantity >= 12;
 
   useEffect(() => {

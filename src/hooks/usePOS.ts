@@ -4,6 +4,9 @@ import { toast } from '@/hooks/use-toast';
 
 const initialProducts: Product[] = [
   { id: '1', name: 'Fotocopy A4', costPrice: 200, sellPrice: 300, stock: 0, category: 'Fotocopy', isPhotocopy: true },
+  { id: '15', name: 'Fotocopy A4 Bolak-Balik', costPrice: 350, sellPrice: 500, stock: 0, category: 'Fotocopy', isPhotocopy: true },
+  { id: '16', name: 'Fotocopy A3', costPrice: 400, sellPrice: 600, stock: 0, category: 'Fotocopy', isPhotocopy: true },
+  { id: '17', name: 'Fotocopy Bufalo', costPrice: 300, sellPrice: 450, stock: 0, category: 'Fotocopy', isPhotocopy: true },
   { id: '2', name: 'Pulpen Standar', costPrice: 2000, sellPrice: 3000, stock: 50, category: 'Alat Tulis' },
   { id: '3', name: 'Pensil 2B', costPrice: 1500, sellPrice: 2500, stock: 100, category: 'Alat Tulis' },
   { id: '4', name: 'Kertas A4 (Rim)', costPrice: 45000, sellPrice: 55000, stock: 20, category: 'Kertas' },
@@ -38,12 +41,27 @@ export const usePOS = () => {
   }, []);
 
   const updateProduct = useCallback((productId: string, updates: Partial<Product>) => {
-    setPosState(prev => ({
-      ...prev,
-      products: prev.products.map(p => 
-        p.id === productId ? { ...p, ...updates } : p
-      ),
-    }));
+    setPosState(prev => {
+      const updatedProducts = prev.products.map(p => {
+        if (p.id === productId) {
+          const updatedProduct = { ...p, ...updates };
+          
+          // Handle rim/karton conversions for paper products
+          if (updatedProduct.category === 'Kertas' && updates.stock !== undefined) {
+            // Store stock in rim units for paper
+            updatedProduct.stock = updates.stock;
+          }
+          
+          return updatedProduct;
+        }
+        return p;
+      });
+      
+      return {
+        ...prev,
+        products: updatedProducts,
+      };
+    });
     
     toast({
       title: "Produk Diperbarui",
@@ -246,9 +264,16 @@ export const usePOS = () => {
       
       const cartItem = cart.find(item => item.product.id === product.id);
       if (cartItem) {
+        let newStock = product.stock - cartItem.quantity;
+        
+        // For paper products, ensure stock doesn't go below 0
+        if (product.category === 'Kertas') {
+          newStock = Math.max(0, newStock);
+        }
+        
         return {
           ...product,
-          stock: product.stock - cartItem.quantity,
+          stock: newStock,
         };
       }
       return product;

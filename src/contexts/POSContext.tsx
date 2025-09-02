@@ -1,18 +1,21 @@
 import React, { createContext, useContext, ReactNode, useState } from 'react';
+import { useSupabasePOS } from '@/hooks/useSupabasePOS';
 import { usePOS } from '@/hooks/usePOS';
 import { CartItem, Product, Receipt } from '@/types/pos';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface POSContextType {
   products: Product[];
   cart: CartItem[];
   receipts: Receipt[];
-  addProduct: (product: Omit<Product, 'id'>) => void;
-  updateProduct: (productId: string, updates: Partial<Product>) => void;
+  loading?: boolean;
+  addProduct: (product: Omit<Product, 'id'>) => void | Promise<void>;
+  updateProduct: (productId: string, updates: Partial<Product>) => void | Promise<void>;
   addToCart: (product: Product, quantity?: number, customPrice?: number) => void;
   updateCartQuantity: (productId: string, quantity: number, finalPrice?: number) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
-  processTransaction: (paymentMethod?: string, discount?: number) => Receipt | null;
+  processTransaction: (paymentMethod?: string, discount?: number) => Receipt | null | Promise<Receipt | null>;
   addManualReceipt: (receipt: Receipt) => void;
   formatPrice: (price: number) => string;
 }
@@ -20,17 +23,21 @@ interface POSContextType {
 const POSContext = createContext<POSContextType | undefined>(undefined);
 
 export const POSProvider = ({ children }: { children: ReactNode }) => {
-  const posHook = usePOS();
+  const { user } = useAuth();
+  const supabasePOS = useSupabasePOS();
+  const localPOS = usePOS();
   const [manualReceipts, setManualReceipts] = useState<Receipt[]>([]);
 
   const addManualReceipt = (receipt: Receipt) => {
     setManualReceipts(prev => [...prev, receipt]);
   };
 
-  const allReceipts = [...posHook.receipts, ...manualReceipts];
+  // Use Supabase data when user is logged in, otherwise use local data
+  const currentPOS = user ? supabasePOS : localPOS;
+  const allReceipts = [...currentPOS.receipts, ...manualReceipts];
 
   const contextValue = {
-    ...posHook,
+    ...currentPOS,
     receipts: allReceipts,
     addManualReceipt,
   };

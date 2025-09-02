@@ -10,7 +10,9 @@ import { StockManagement } from './StockManagement';
 import { ReceiptHistory } from './ReceiptHistory';
 import { ManualInvoice } from './ManualInvoice';
 import { ShoppingList } from './ShoppingList';
+import { AdminProtection } from '@/components/Auth/AdminProtection';
 import { usePOSContext } from '@/contexts/POSContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Receipt as ReceiptType, Product } from '@/types/pos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,7 +27,9 @@ import {
   TrendingUp,
   Users,
   DollarSign,
-  BarChart3
+  BarChart3,
+  LogOut,
+  Settings
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
@@ -45,6 +49,7 @@ export const POSInterface = () => {
     formatPrice,
   } = usePOSContext();
 
+  const { signOut } = useAuth();
   const location = useLocation();
   const [lastReceipt, setLastReceipt] = useState<ReceiptType | null>(null);
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptType | null>(location.state?.viewReceipt || null);
@@ -52,9 +57,11 @@ export const POSInterface = () => {
   const [photocopyProduct, setPhotocopyProduct] = useState<Product | null>(null);
   const [showPhotocopyDialog, setShowPhotocopyDialog] = useState(false);
   const [currentTab, setCurrentTab] = useState('pos');
+  const [showAdminProtection, setShowAdminProtection] = useState(false);
+  const [pendingAdminAction, setPendingAdminAction] = useState<string | null>(null);
 
-  const handleProcessTransaction = (paymentMethod?: string, discount?: number) => {
-    const receipt = processTransaction(paymentMethod, discount);
+  const handleProcessTransaction = async (paymentMethod?: string, discount?: number) => {
+    const receipt = await processTransaction(paymentMethod, discount);
     if (receipt) {
       setLastReceipt(receipt);
     }
@@ -78,6 +85,26 @@ export const POSInterface = () => {
       case 'stock':
         setCurrentTab('low-stock');
         break;
+    }
+  };
+
+  const handleAdminAction = (action: string) => {
+    setPendingAdminAction(action);
+    setShowAdminProtection(true);
+  };
+
+  const handleAdminSuccess = () => {
+    if (pendingAdminAction) {
+      setCurrentTab(pendingAdminAction);
+      setPendingAdminAction(null);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
     }
   };
 
@@ -224,6 +251,15 @@ Profit: ${formatPrice(receipt.profit)}
             </div>
             
             <div className="flex items-center gap-2 sm:gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="flex items-center gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </Button>
               <div className="text-right text-xs sm:text-sm">
                 <div className="font-semibold">Admin Kasir</div>
                 <div className="text-muted-foreground hidden sm:block">
@@ -285,7 +321,13 @@ Profit: ${formatPrice(receipt.profit)}
           </Card>
         </div>
 
-        <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
+        <Tabs value={currentTab} onValueChange={(value) => {
+          if (value === 'admin') {
+            handleAdminAction(value);
+          } else {
+            setCurrentTab(value);
+          }
+        }} className="w-full">
           <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 gap-1 h-auto p-1">
             <TabsTrigger value="pos" className="text-xs sm:text-sm p-2 sm:p-3">Kasir</TabsTrigger>
             <TabsTrigger value="manual-invoice" className="text-xs sm:text-sm p-2 sm:p-3">Nota Manual</TabsTrigger>
@@ -383,6 +425,7 @@ Profit: ${formatPrice(receipt.profit)}
               formatPrice={formatPrice}
               receipts={receipts}
               onPrintReceipt={handlePrintThermal}
+              products={products}
             />
           </TabsContent>
 
@@ -460,6 +503,15 @@ Profit: ${formatPrice(receipt.profit)}
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Admin Protection Dialog */}
+        <AdminProtection
+          isOpen={showAdminProtection}
+          onClose={() => setShowAdminProtection(false)}
+          onSuccess={handleAdminSuccess}
+          title="Akses Admin Diperlukan"
+          description="Masukkan kata sandi admin untuk mengakses menu admin"
+        />
 
         {/* Photocopy Dialog */}
         {photocopyProduct && (

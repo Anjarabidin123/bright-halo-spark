@@ -6,17 +6,19 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Trash2, Receipt as ReceiptIcon, CreditCard, Percent, Printer, Copy } from 'lucide-react';
-import { Receipt as ReceiptType } from '@/types/pos';
+import { Plus, Trash2, Receipt as ReceiptIcon, CreditCard, Percent, Printer, Copy, Bluetooth } from 'lucide-react';
+import { Receipt as ReceiptType, Product } from '@/types/pos';
 import { toast } from 'sonner';
+import { hybridThermalPrinter } from '@/lib/hybrid-thermal-printer';
+import { formatThermalReceipt } from '@/lib/receipt-formatter';
 
 interface ManualItem {
   id: string;
   name: string;
   quantity: number;
-  unitPrice: number;
+  unitPrice?: number;
   total: number;
+  isPhotocopy?: boolean;
 }
 
 interface ManualInvoiceProps {
@@ -24,26 +26,82 @@ interface ManualInvoiceProps {
   formatPrice: (price: number) => string;
   receipts: ReceiptType[];
   onPrintReceipt?: (receipt: ReceiptType) => void;
+  products: Product[];
 }
 
-export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintReceipt }: ManualInvoiceProps) => {
+export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintReceipt, products }: ManualInvoiceProps) => {
   const [items, setItems] = useState<ManualItem[]>([]);
   const [currentItem, setCurrentItem] = useState({
     name: '',
     quantity: 0,
-    unitPrice: 0
+    unitPrice: 0,
+    isPhotocopy: false
+  });
+  const [currentPhotocopy, setCurrentPhotocopy] = useState({
+    productId: '',
+    total: 0
   });
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<'amount' | 'percent'>('amount');
-  const [photocopyQuantity, setPhotocopyQuantity] = useState(0);
-  const [photocopyTotalPrice, setPhotocopyTotalPrice] = useState(0);
-  const [itemType, setItemType] = useState<'regular' | 'photocopy'>('regular');
+  const [isBluetoothConnected, setIsBluetoothConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const photocopyProducts = products.filter(p => p.isPhotocopy);
+
+  const addPhotocopyItem = () => {
+    if (!currentPhotocopy.productId || currentPhotocopy.total <= 0) {
+      toast.error('Pilih jenis fotocopy dan masukkan total harga!');
+      return;
+    }
+
+    const product = photocopyProducts.find(p => p.id === currentPhotocopy.productId);
+    if (!product) return;
+
+    const newItem: ManualItem = {
+      id: Date.now().toString(),
+      name: product.name,
+      quantity: 1,
+      total: currentPhotocopy.total,
+      isPhotocopy: true
+    };
+    setItems(prev => [...prev, newItem]);
+    setCurrentPhotocopy({ productId: '', total: 0 });
+  };
 
   const addItem = () => {
-    if (itemType === 'regular') {
-      if (!currentItem.name || currentItem.unitPrice <= 0 || currentItem.quantity <= 0) {
-        toast.error('Nama barang, jumlah, dan harga harus diisi!');
+    if (!currentItem.name) {
+      toast.error('Nama barang harus diisi!');
+      return;
+    }
+
+    if (currentItem.isPhotocopy) {
+      // Untuk fotocopy, validasi harga total
+      if (currentItem.unitPrice <= 0) {
+        toast.error('Total harga fotocopy harus diisi!');
+        return;
+      }
+      
+      const newItem: ManualItem = {
+        id: Date.now().toString(),
+        name: currentItem.name,
+        quantity: 1, // Fotocopy selalu quantity 1
+        unitPrice: currentItem.unitPrice, // Simpan sebagai unit price untuk konsistensi
+        total: currentItem.unitPrice, // Total sama dengan harga yang diinput
+        isPhotocopy: true
+      };
+      
+      setItems(prev => [...prev, newItem]);
+      setCurrentItem({ name: '', quantity: 0, unitPrice: 0, isPhotocopy: false });
+    } else {
+      // Untuk barang regular, validasi jumlah dan harga satuan
+      if (currentItem.quantity <= 0) {
+        toast.error('Jumlah barang harus diisi!');
+        return;
+      }
+      
+      if (currentItem.unitPrice <= 0) {
+        toast.error('Harga satuan harus diisi!');
         return;
       }
 
@@ -52,28 +110,12 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
         name: currentItem.name,
         quantity: currentItem.quantity,
         unitPrice: currentItem.unitPrice,
-        total: currentItem.quantity * currentItem.unitPrice
+        total: currentItem.quantity * currentItem.unitPrice,
+        isPhotocopy: false
       };
 
       setItems(prev => [...prev, newItem]);
-      setCurrentItem({ name: '', quantity: 0, unitPrice: 0 });
-    } else {
-      if (photocopyQuantity <= 0 || photocopyTotalPrice <= 0) {
-        toast.error('Jumlah fotocopy dan harga total harus diisi!');
-        return;
-      }
-
-      const newItem: ManualItem = {
-        id: Date.now().toString(),
-        name: `Fotocopy ${photocopyQuantity} lembar`,
-        quantity: photocopyQuantity,
-        unitPrice: photocopyTotalPrice / photocopyQuantity,
-        total: photocopyTotalPrice
-      };
-
-      setItems(prev => [...prev, newItem]);
-      setPhotocopyQuantity(0);
-      setPhotocopyTotalPrice(0);
+      setCurrentItem({ name: '', quantity: 0, unitPrice: 0, isPhotocopy: false });
     }
   };
 
@@ -84,8 +126,8 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
   const updateItemQuantity = (id: string, quantity: number) => {
     if (quantity <= 0) return;
     setItems(prev => prev.map(item => 
-      item.id === id 
-        ? { ...item, quantity, total: quantity * item.unitPrice }
+      item.id === id && !item.isPhotocopy
+        ? { ...item, quantity, total: quantity * (item.unitPrice || 0) }
         : item
     ));
   };
@@ -117,13 +159,13 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
         id: item.id,
         name: item.name,
         costPrice: 0, // No cost price for manual items
-        sellPrice: item.unitPrice,
+        sellPrice: item.isPhotocopy ? item.total : (item.unitPrice || 0),
         stock: 0,
-        category: 'Manual',
-        isPhotocopy: false
+        category: item.isPhotocopy ? 'Fotocopy' : 'Manual',
+        isPhotocopy: item.isPhotocopy || false
       },
       quantity: item.quantity,
-      finalPrice: item.unitPrice
+      finalPrice: item.isPhotocopy ? item.total : (item.unitPrice || 0)
     }));
 
     const receipt: ReceiptType = {
@@ -141,12 +183,83 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
     
     // Reset form
     setItems([]);
-    setCurrentItem({ name: '', quantity: 0, unitPrice: 0 });
+    setCurrentItem({ name: '', quantity: 0, unitPrice: 0, isPhotocopy: false });
+    setCurrentPhotocopy({ productId: '', total: 0 });
     setDiscount(0);
     setPaymentMethod('cash');
     
     toast.success(`Nota manual ${invoiceId} berhasil dibuat!`);
     return receipt;
+  };
+
+  const handleConnectBluetooth = async () => {
+    setIsConnecting(true);
+    try {
+      const connected = await hybridThermalPrinter.connect();
+      setIsBluetoothConnected(connected);
+      if (connected) {
+        toast.success('Bluetooth printer berhasil terhubung!');
+      } else {
+        toast.error('Gagal terhubung ke printer Bluetooth');
+      }
+    } catch (error) {
+      console.error('Bluetooth connection error:', error);
+      toast.error('Terjadi kesalahan saat menghubungkan Bluetooth');
+      setIsBluetoothConnected(false);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handlePrintOnly = async () => {
+    const receipt = handleCreateInvoice();
+    if (!receipt) return;
+
+    if (!isBluetoothConnected) {
+      toast.error('Bluetooth printer belum terhubung!');
+      return;
+    }
+
+    try {
+      const receiptText = formatThermalReceipt(receipt, formatPrice);
+      const printed = await hybridThermalPrinter.print(receiptText);
+      
+      if (printed) {
+        toast.success('Nota berhasil dicetak!');
+      } else {
+        toast.error('Gagal mencetak nota');
+      }
+    } catch (error) {
+      console.error('Print error:', error);
+      toast.error('Terjadi kesalahan saat mencetak');
+    }
+  };
+
+  const handlePrintInvoice = async () => {
+    const receipt = handleCreateInvoice();
+    if (!receipt) return;
+
+    try {
+      // Connect to thermal printer
+      const connected = await hybridThermalPrinter.connect();
+      if (!connected) {
+        toast.error('Gagal terhubung ke printer thermal');
+        return;
+      }
+
+      // Format and print receipt
+      const receiptText = formatThermalReceipt(receipt, formatPrice);
+      const printed = await hybridThermalPrinter.print(receiptText);
+      
+      if (printed) {
+        toast.success('Nota berhasil dicetak!');
+      } else {
+        toast.error('Gagal mencetak nota');
+      }
+    } catch (error) {
+      console.error('Print error:', error);
+      toast.error('Terjadi kesalahan saat mencetak');
+    }
   };
 
   return (
@@ -161,19 +274,115 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Tabs value={itemType} onValueChange={(value: 'regular' | 'photocopy') => setItemType(value)}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="regular">Barang Reguler</TabsTrigger>
-                <TabsTrigger value="photocopy">Fotocopy</TabsTrigger>
-              </TabsList>
+            {/* Fotocopy Section */}
+            <div className="space-y-4">
+              <h4 className="font-semibold flex items-center gap-2">
+                <Copy className="h-4 w-4" />
+                Fotocopy
+              </h4>
+              {photocopyProducts.length > 0 && (
+                <div className="border rounded-lg p-4 bg-muted/50">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label>Jenis Fotocopy</Label>
+                      <Select value={currentPhotocopy.productId} onValueChange={(value) => setCurrentPhotocopy(prev => ({ ...prev, productId: value }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih jenis fotocopy" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {photocopyProducts.map(product => (
+                            <SelectItem key={product.id} value={product.id}>
+                              {product.name} - {formatPrice(product.sellPrice)}/lembar
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="photocopyTotal">Total Harga</Label>
+                      <Input
+                        id="photocopyTotal"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={currentPhotocopy.total || ''}
+                        onChange={(e) => setCurrentPhotocopy(prev => ({ ...prev, total: Number(e.target.value) || 0 }))}
+                        onKeyDown={(e) => e.key === 'Enter' && addPhotocopyItem()}
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button onClick={addPhotocopyItem} className="w-full">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Tambah Fotocopy
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Regular Items Section */}
+            <div className="space-y-4">
+              <h4 className="font-semibold flex items-center gap-2">
+                <ReceiptIcon className="h-4 w-4" />
+                Barang/Jasa Lain
+              </h4>
               
-              <TabsContent value="regular" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="md:col-span-2">
-                    <Label htmlFor="itemName">Nama Barang</Label>
+              <div className="flex items-center gap-4 mb-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={currentItem.isPhotocopy}
+                    onChange={(e) => setCurrentItem(prev => ({ 
+                      ...prev, 
+                      isPhotocopy: e.target.checked,
+                      name: e.target.checked ? 'Fotocopy' : '',
+                      unitPrice: e.target.checked ? 0 : prev.unitPrice,
+                      quantity: e.target.checked ? 1 : prev.quantity
+                    }))}
+                    className="rounded"
+                  />
+                  <Copy className="h-4 w-4" />
+                  Fotocopy (input harga total langsung)
+                </label>
+              </div>
+              
+              {currentItem.isPhotocopy ? (
+                // Fotocopy input - hanya nama dan total harga
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="itemName">Nama Item</Label>
                     <Input
                       id="itemName"
-                      placeholder="Masukkan nama barang..."
+                      placeholder="Fotocopy"
+                      value={currentItem.name}
+                      onChange={(e) => setCurrentItem(prev => ({ ...prev, name: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && addItem()}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="totalPrice">Total Harga Fotocopy</Label>
+                    <Input
+                      id="totalPrice"
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={currentItem.unitPrice || ''}
+                      onChange={(e) => setCurrentItem(prev => ({ ...prev, unitPrice: Number(e.target.value) || 0 }))}
+                      onKeyDown={(e) => e.key === 'Enter' && addItem()}
+                    />
+                  </div>
+                </div>
+              ) : (
+                // Regular item input - nama, jumlah, harga satuan
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="md:col-span-2">
+                    <Label htmlFor="itemName">Nama Barang/Jasa</Label>
+                    <Input
+                      id="itemName"
+                      placeholder="Masukkan nama barang atau jasa (misal: Pulpen, Buku, dll)"
                       value={currentItem.name}
                       onChange={(e) => setCurrentItem(prev => ({ ...prev, name: e.target.value }))}
                       onKeyDown={(e) => e.key === 'Enter' && addItem()}
@@ -187,6 +396,7 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
                       min="0"
                       value={currentItem.quantity || ''}
                       onChange={(e) => setCurrentItem(prev => ({ ...prev, quantity: Number(e.target.value) || 0 }))}
+                      placeholder="Jumlah"
                     />
                   </div>
                   <div>
@@ -202,58 +412,21 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
                     />
                   </div>
                 </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">
-                    Total: {formatPrice(currentItem.quantity * currentItem.unitPrice)}
-                  </div>
-                  <Button onClick={addItem} size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Tambah Item
-                  </Button>
-                </div>
-              </TabsContent>
+              )}
               
-              <TabsContent value="photocopy" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="photocopyQty">Jumlah Lembar</Label>
-                    <Input
-                      id="photocopyQty"
-                      type="number"
-                      min="0"
-                      value={photocopyQuantity || ''}
-                      onChange={(e) => setPhotocopyQuantity(Number(e.target.value) || 0)}
-                      placeholder="Masukkan jumlah lembar"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="photocopyTotal">Harga Total</Label>
-                    <Input
-                      id="photocopyTotal"
-                      type="number"
-                      min="0"
-                      value={photocopyTotalPrice || ''}
-                      onChange={(e) => setPhotocopyTotalPrice(Number(e.target.value) || 0)}
-                      placeholder="Masukkan harga total"
-                      onKeyDown={(e) => e.key === 'Enter' && addItem()}
-                    />
-                  </div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Total: {currentItem.isPhotocopy ? 
+                    formatPrice(currentItem.unitPrice || 0) : 
+                    formatPrice(currentItem.quantity * currentItem.unitPrice)
+                  }
                 </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">
-                    {photocopyQuantity > 0 && photocopyTotalPrice > 0 && (
-                      <>Harga per lembar: {formatPrice(photocopyTotalPrice / photocopyQuantity)}</>
-                    )}
-                  </div>
-                  <Button onClick={addItem} size="sm">
-                    <Copy className="h-4 w-4 mr-2" />
-                    Tambah Fotocopy
-                  </Button>
-                </div>
-              </TabsContent>
-            </Tabs>
+                <Button onClick={addItem} size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Tambah Item
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -271,31 +444,39 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
                 {items.map((item) => (
                   <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex-1">
-                      <div className="font-medium">{item.name}</div>
+                      <div className="font-medium flex items-center gap-2">
+                        {item.name}
+                        {item.isPhotocopy && <Badge variant="secondary" className="text-xs">Fotocopy</Badge>}
+                      </div>
                       <div className="text-sm text-muted-foreground">
-                        {formatPrice(item.unitPrice)} × {item.quantity}
+                        {item.isPhotocopy ? 
+                          `1 × ${formatPrice(item.total)}` :
+                          `${formatPrice(item.unitPrice || 0)} × ${item.quantity}`
+                        }
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
-                          className="h-6 w-6 p-0"
-                        >
-                          -
-                        </Button>
-                        <span className="text-sm w-8 text-center">{item.quantity}</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
-                          className="h-6 w-6 p-0"
-                        >
-                          +
-                        </Button>
-                      </div>
+                      {!item.isPhotocopy && (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
+                            className="h-6 w-6 p-0"
+                          >
+                            -
+                          </Button>
+                          <span className="text-sm w-8 text-center">{item.quantity}</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
+                            className="h-6 w-6 p-0"
+                          >
+                            +
+                          </Button>
+                        </div>
+                      )}
                       <div className="font-semibold min-w-[80px] text-right">
                         {formatPrice(item.total)}
                       </div>
@@ -385,30 +566,48 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
             </div>
 
             <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Bluetooth className="w-4 h-4" />
+                Bluetooth Printer
+              </Label>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleConnectBluetooth}
+                disabled={isConnecting}
+              >
+                <Bluetooth className="w-4 h-4 mr-2" />
+                {isConnecting ? 'Menghubungkan...' : 
+                 isBluetoothConnected ? 'Terhubung' : 'Sambungkan Bluetooth'}
+              </Button>
+              {isBluetoothConnected && (
+                <div className="text-xs text-green-600 flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  Printer siap digunakan
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            <div className="grid grid-cols-2 gap-2">
               <Button 
-                className="w-full" 
-                onClick={handleCreateInvoice}
+                onClick={handleCreateInvoice} 
+                className="w-full"
                 disabled={items.length === 0}
               >
-                <CreditCard className="w-4 h-4 mr-2" />
-                Buat Nota Manual
+                <ReceiptIcon className="h-4 w-4 mr-2" />
+                Buat Nota
               </Button>
-              
-              {items.length > 0 && (
-                <Button 
-                  variant="outline"
-                  className="w-full" 
-                  onClick={() => {
-                    const receipt = handleCreateInvoice();
-                    if (receipt && onPrintReceipt) {
-                      onPrintReceipt(receipt);
-                    }
-                  }}
-                >
-                  <Printer className="w-4 h-4 mr-2" />
-                  Buat & Print Nota
-                </Button>
-              )}
+              <Button 
+                onClick={handlePrintOnly} 
+                className="w-full"
+                disabled={items.length === 0 || !isBluetoothConnected}
+                variant="outline"
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                Print
+              </Button>
             </div>
 
             <div className="text-xs text-muted-foreground text-center">

@@ -7,24 +7,38 @@ import { POSInterface } from "@/components/POS/POSInterface";
 import { CartView } from "./pages/CartView";
 import NotFound from "./pages/NotFound";
 import { POSProvider } from "@/contexts/POSContext";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { LoginPage } from "@/components/Auth/LoginPage";
+import { ProtectedRoute } from "@/components/Auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <POSProvider>
-          <Routes>
-            <Route path="/" element={<POSInterface />} />
-            <Route path="/cart" element={<CartView />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </POSProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <POSProvider>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <POSInterface />
+                </ProtectedRoute>
+              } />
+              <Route path="/cart" element={
+                <ProtectedRoute>
+                  <CartView />
+                </ProtectedRoute>
+              } />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </POSProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
