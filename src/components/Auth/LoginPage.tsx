@@ -182,7 +182,7 @@ export const LoginPage = () => {
                   type="email"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
-                  placeholder="tokoanjar036@gmail.com atau anjarbdn@gmail.com"
+                  placeholder="email@contoh.com"
                   required
                 />
               </div>
@@ -229,7 +229,7 @@ export const LoginPage = () => {
         <CardContent>
           <form onSubmit={handleSignIn} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">Email atau Username</Label>
               <Input
                 id="username"
                 type="text"
@@ -238,7 +238,7 @@ export const LoginPage = () => {
                   ...formData, 
                   email: e.target.value 
                 })}
-                placeholder="tokoanjar"
+                placeholder="email@contoh.com atau username"
                 required
               />
             </div>
