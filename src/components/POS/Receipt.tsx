@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Receipt as ReceiptType } from '@/types/pos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,20 +17,7 @@ interface ReceiptProps {
 
 export const Receipt = ({ receipt, formatPrice, onBack }: ReceiptProps) => {
   
-  // Add Enter key support for thermal printing
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleThermalPrint();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  const handleThermalPrint = async () => {
+  const handleThermalPrint = useCallback(async () => {
     try {
       // Try thermal printing first
       if (hybridThermalPrinter.isConnected()) {
@@ -64,9 +51,9 @@ export const Receipt = ({ receipt, formatPrice, onBack }: ReceiptProps) => {
       toast.error('Thermal printer gagal, menggunakan printer browser...');
       handlePrint();
     }
-  };
+  }, [receipt, formatPrice]);
 
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     const printContent = formatPrintReceipt(receipt, formatPrice);
     const printWindow = window.open('', '_blank');
     if (printWindow) {
@@ -74,13 +61,26 @@ export const Receipt = ({ receipt, formatPrice, onBack }: ReceiptProps) => {
       printWindow.document.close();
       printWindow.print();
     }
-  };
+  }, [receipt, formatPrice]);
 
-  const handleCopyReceipt = () => {
+  const handleCopyReceipt = useCallback(() => {
     const receiptText = formatThermalReceipt(receipt, formatPrice);
     navigator.clipboard.writeText(receiptText);
     toast.success('Struk berhasil disalin ke clipboard!');
-  };
+  }, [receipt, formatPrice]);
+
+  // Add Enter key support for thermal printing
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleThermalPrint();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleThermalPrint]);
 
   return (
     <div className="space-y-4">
