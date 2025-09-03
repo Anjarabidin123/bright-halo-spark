@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   ShoppingCart as CartIcon, 
   Plus, 
@@ -13,112 +14,116 @@ import {
   Edit,
   Check,
   X,
-  AlertTriangle 
+  AlertTriangle,
+  Download,
+  Share2
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface ShoppingItem {
-  id: string;
-  name: string;
-  quantity?: number;
-  currentStock?: number;
-  notes?: string;
-  isCompleted: boolean;
-  dateAdded: Date;
-}
+import { useShoppingList, ShoppingItem } from '@/hooks/useShoppingList';
+import { useAuth } from '@/contexts/AuthContext';
+import { generateShoppingListPDF, shareShoppingListPDF } from '@/lib/pdf-utils';
+import { QuantitySelector } from './QuantitySelector';
 
 export const ShoppingList = () => {
-  const [items, setItems] = useState<ShoppingItem[]>([]);
+  const { user } = useAuth();
+  const { items, loading, addItem, updateItem, removeItem, toggleComplete, clearCompleted } = useShoppingList();
   const [newItem, setNewItem] = useState({
     name: '',
-    quantity: '',
+    quantity: 1,
+    unit: 'pcs',
     currentStock: '',
     notes: ''
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     name: '',
-    quantity: '',
+    quantity: 1,
+    unit: 'pcs',
     currentStock: '',
     notes: ''
   });
 
-  const addItem = () => {
+  const handleAddItem = async () => {
     if (!newItem.name.trim()) {
       toast.error('Nama barang harus diisi!');
       return;
     }
 
-    const item: ShoppingItem = {
-      id: Date.now().toString(),
+    await addItem({
       name: newItem.name.trim(),
-      quantity: newItem.quantity ? Number(newItem.quantity) : undefined,
-      currentStock: newItem.currentStock ? Number(newItem.currentStock) : undefined,
+      quantity: newItem.quantity || undefined,
+      unit: newItem.unit,
+      current_stock: newItem.currentStock ? Number(newItem.currentStock) : undefined,
       notes: newItem.notes.trim() || undefined,
-      isCompleted: false,
-      dateAdded: new Date()
-    };
+      is_completed: false
+    });
 
-    setItems(prev => [item, ...prev]);
-    setNewItem({ name: '', quantity: '', currentStock: '', notes: '' });
-    toast.success('Item berhasil ditambahkan ke daftar belanja!');
+    setNewItem({ name: '', quantity: 1, unit: 'pcs', currentStock: '', notes: '' });
   };
 
-  const removeItem = (id: string) => {
-    setItems(prev => prev.filter(item => item.id !== id));
-    toast.success('Item dihapus dari daftar belanja');
+  const handleRemoveItem = async (id: string) => {
+    await removeItem(id);
   };
 
-  const toggleComplete = (id: string) => {
-    setItems(prev => prev.map(item => 
-      item.id === id ? { ...item, isCompleted: !item.isCompleted } : item
-    ));
+  const handleToggleComplete = async (id: string) => {
+    await toggleComplete(id);
   };
 
   const startEdit = (item: ShoppingItem) => {
     setEditingId(item.id);
     setEditForm({
       name: item.name,
-      quantity: item.quantity?.toString() || '',
-      currentStock: item.currentStock?.toString() || '',
+      quantity: item.quantity || 1,
+      unit: item.unit || 'pcs',
+      currentStock: item.current_stock?.toString() || '',
       notes: item.notes || ''
     });
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editForm.name.trim()) {
       toast.error('Nama barang harus diisi!');
       return;
     }
 
-    setItems(prev => prev.map(item => 
-      item.id === editingId ? {
-        ...item,
-        name: editForm.name.trim(),
-        quantity: editForm.quantity ? Number(editForm.quantity) : undefined,
-        currentStock: editForm.currentStock ? Number(editForm.currentStock) : undefined,
-        notes: editForm.notes.trim() || undefined
-      } : item
-    ));
+    await updateItem(editingId!, {
+      name: editForm.name.trim(),
+      quantity: editForm.quantity || undefined,
+      unit: editForm.unit,
+      current_stock: editForm.currentStock ? Number(editForm.currentStock) : undefined,
+      notes: editForm.notes.trim() || undefined
+    });
 
     setEditingId(null);
-    setEditForm({ name: '', quantity: '', currentStock: '', notes: '' });
+    setEditForm({ name: '', quantity: 1, unit: 'pcs', currentStock: '', notes: '' });
     toast.success('Item berhasil diperbarui!');
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditForm({ name: '', quantity: '', currentStock: '', notes: '' });
+    setEditForm({ name: '', quantity: 1, unit: 'pcs', currentStock: '', notes: '' });
   };
 
-  const clearCompleted = () => {
-    const completedCount = items.filter(item => item.isCompleted).length;
-    setItems(prev => prev.filter(item => !item.isCompleted));
-    toast.success(`${completedCount} item selesai dihapus dari daftar`);
+  const handleClearCompleted = async () => {
+    await clearCompleted();
   };
 
-  const pendingItems = items.filter(item => !item.isCompleted);
-  const completedItems = items.filter(item => item.isCompleted);
+  const handleDownloadPDF = () => {
+    const pdf = generateShoppingListPDF(items, user?.email);
+    pdf.save('daftar-belanja.pdf');
+    toast.success('PDF berhasil diunduh!');
+  };
+
+  const handleSharePDF = async () => {
+    await shareShoppingListPDF(items, user?.email);
+  };
+
+  const pendingItems = items.filter(item => !item.is_completed);
+  const completedItems = items.filter(item => item.is_completed);
+
+  if (loading) {
+    return <div className="text-center p-4">Memuat daftar belanja...</div>;
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -139,19 +144,18 @@ export const ShoppingList = () => {
                 placeholder="Nama barang yang perlu dibeli..."
                 value={newItem.name}
                 onChange={(e) => setNewItem(prev => ({ ...prev, name: e.target.value }))}
-                onKeyDown={(e) => e.key === 'Enter' && addItem()}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
               />
             </div>
             
             <div>
-              <Label htmlFor="quantity">Jumlah (opsional)</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="1"
-                placeholder="Berapa yang perlu dibeli?"
-                value={newItem.quantity}
-                onChange={(e) => setNewItem(prev => ({ ...prev, quantity: e.target.value }))}
+              <Label htmlFor="quantity">Jumlah & Unit</Label>
+              <QuantitySelector
+                quantity={newItem.quantity}
+                productName={newItem.name}
+                onQuantityChange={(qty) => setNewItem(prev => ({ ...prev, quantity: qty }))}
+                showUnitSelector={true}
+                allowBulkPricing={false}
               />
             </div>
 
@@ -178,7 +182,7 @@ export const ShoppingList = () => {
               />
             </div>
 
-            <Button onClick={addItem} className="w-full">
+            <Button onClick={handleAddItem} className="w-full">
               <Plus className="h-4 w-4 mr-2" />
               Tambah ke Daftar
             </Button>
@@ -207,9 +211,25 @@ export const ShoppingList = () => {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={clearCompleted}
+                      onClick={handleClearCompleted}
                     >
                       Hapus Selesai
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleDownloadPDF}
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      PDF
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleSharePDF}
+                    >
+                      <Share2 className="h-3 w-3 mr-1" />
+                      Bagikan
                     </Button>
                   </>
                 )}
@@ -243,12 +263,13 @@ export const ShoppingList = () => {
                                 onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
                                 placeholder="Nama barang"
                               />
-                              <div className="grid grid-cols-2 gap-2">
-                                <Input
-                                  type="number"
-                                  value={editForm.quantity}
-                                  onChange={(e) => setEditForm(prev => ({ ...prev, quantity: e.target.value }))}
-                                  placeholder="Jumlah"
+                               <div className="space-y-2">
+                                <QuantitySelector
+                                  quantity={editForm.quantity}
+                                  productName={editForm.name}
+                                  onQuantityChange={(qty) => setEditForm(prev => ({ ...prev, quantity: qty }))}
+                                  showUnitSelector={true}
+                                  allowBulkPricing={false}
                                 />
                                 <Input
                                   type="number"
@@ -281,12 +302,12 @@ export const ShoppingList = () => {
                                   <h4 className="font-medium">{item.name}</h4>
                                   {item.quantity && (
                                     <Badge variant="outline" className="text-xs">
-                                      Qty: {item.quantity}
+                                      {item.quantity} {item.unit || 'pcs'}
                                     </Badge>
                                   )}
-                                  {item.currentStock !== undefined && (
-                                    <Badge variant={item.currentStock <= 5 ? "destructive" : "secondary"} className="text-xs">
-                                      Stok: {item.currentStock}
+                                  {item.current_stock !== undefined && (
+                                    <Badge variant={item.current_stock <= 5 ? "destructive" : "secondary"} className="text-xs">
+                                      Stok: {item.current_stock}
                                     </Badge>
                                   )}
                                 </div>
@@ -294,7 +315,7 @@ export const ShoppingList = () => {
                                   <p className="text-sm text-muted-foreground mb-2">{item.notes}</p>
                                 )}
                                 <p className="text-xs text-muted-foreground">
-                                  Ditambahkan: {item.dateAdded.toLocaleDateString('id-ID')}
+                                  Ditambahkan: {item.created_at.toLocaleDateString('id-ID')}
                                 </p>
                               </div>
                               <div className="flex items-center gap-1">
@@ -309,7 +330,7 @@ export const ShoppingList = () => {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => toggleComplete(item.id)}
+                                  onClick={() => handleToggleComplete(item.id)}
                                   className="h-7 w-7 p-0"
                                 >
                                   <Check className="h-3 w-3" />
@@ -317,7 +338,7 @@ export const ShoppingList = () => {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => removeItem(item.id)}
+                                  onClick={() => handleRemoveItem(item.id)}
                                   className="h-7 w-7 p-0 text-destructive"
                                 >
                                   <Trash2 className="h-3 w-3" />
@@ -347,9 +368,9 @@ export const ShoppingList = () => {
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
                                   <h4 className="font-medium line-through text-muted-foreground">{item.name}</h4>
-                                  {item.quantity && (
+                                   {item.quantity && (
                                     <Badge variant="outline" className="text-xs">
-                                      Qty: {item.quantity}
+                                      {item.quantity} {item.unit || 'pcs'}
                                     </Badge>
                                   )}
                                 </div>
@@ -361,7 +382,7 @@ export const ShoppingList = () => {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => toggleComplete(item.id)}
+                                  onClick={() => handleToggleComplete(item.id)}
                                   className="h-7 w-7 p-0"
                                 >
                                   <X className="h-3 w-3" />
@@ -369,7 +390,7 @@ export const ShoppingList = () => {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => removeItem(item.id)}
+                                  onClick={() => handleRemoveItem(item.id)}
                                   className="h-7 w-7 p-0 text-destructive"
                                 >
                                   <Trash2 className="h-3 w-3" />

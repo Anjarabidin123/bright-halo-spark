@@ -29,7 +29,7 @@ export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) =
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.sellPrice || !formData.costPrice || (!stockQuantity && !formData.isPhotocopy && !isService)) {
+    if (!formData.name || !formData.sellPrice || !formData.costPrice) {
       return;
     }
 
@@ -37,7 +37,7 @@ export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) =
       name: formData.name,
       costPrice: parseFloat(formData.costPrice),
       sellPrice: parseFloat(formData.sellPrice),
-      stock: (formData.isPhotocopy || isService) ? 0 : stockQuantity,
+      stock: (formData.isPhotocopy || isService) ? 0 : (stockQuantity || 0),
       category: formData.category || undefined,
       isPhotocopy: formData.isPhotocopy,
     });
@@ -138,8 +138,10 @@ export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) =
                   </Select>
                 </div>
 
+                {/* Stock management temporarily disabled for testing */}
+                {/* 
                 <div className="md:col-span-2">
-                  <Label>Jumlah Stok *</Label>
+                  <Label>Jumlah Stok (opsional)</Label>
                   <QuantitySelector
                     quantity={stockQuantity}
                     productName={formData.name}
@@ -148,6 +150,7 @@ export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) =
                     showUnitSelector={true}
                   />
                 </div>
+                */}
                 
                 <div className="flex items-center space-x-2">
                   <input

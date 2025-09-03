@@ -47,27 +47,15 @@ export const StockManagement = ({
   const [stockInputs, setStockInputs] = useState<Record<string, number>>({});
   const [selectedUnits, setSelectedUnits] = useState<Record<string, string>>({});
 
+  // Stock management temporarily disabled for testing
   const handleStockUpdate = (productId: string, change: number) => {
-    const product = products.find(p => p.id === productId);
-    if (product) {
-      const newStock = Math.max(0, product.stock + change);
-      onUpdateProduct(productId, { stock: newStock });
-    }
+    // Temporarily disabled for testing
+    console.log('Stock update disabled for testing');
   };
 
   const handleBulkStockAdd = (productId: string) => {
-    const product = products.find(p => p.id === productId);
-    if (product) {
-      const quantity = stockInputs[productId] || 1;
-      const unit = selectedUnits[productId] || 'pcs';
-      const unitOptions = getUnitOptions(product.name);
-      const multiplier = unitOptions.find(opt => opt.value === unit)?.multiplier || 1;
-      const totalQuantity = quantity * multiplier;
-      
-      onUpdateProduct(productId, { stock: product.stock + totalQuantity });
-      setStockInputs({ ...stockInputs, [productId]: 1 });
-      setSelectedUnits({ ...selectedUnits, [productId]: 'pcs' });
-    }
+    // Temporarily disabled for testing  
+    console.log('Bulk stock add disabled for testing');
   };
 
   return (
@@ -165,7 +153,8 @@ export const StockManagement = ({
                   </Badge>
                 </div>
 
-                {!product.isPhotocopy && !readOnly && (
+                {/* Stock adjustment temporarily disabled for testing */}
+                {false && !product.isPhotocopy && !readOnly && (
                   <div className="flex items-center gap-1">
                     <Button
                       size="sm"
@@ -188,7 +177,8 @@ export const StockManagement = ({
                 )}
               </div>
 
-              {!product.isPhotocopy && !readOnly && (
+              {/* Bulk stock management temporarily disabled for testing */}
+              {false && !product.isPhotocopy && !readOnly && (
                 <div className="mt-3 p-3 bg-muted/50 rounded border">
                   <div className="text-xs font-medium mb-2">Tambah Stok:</div>
                   <div className="flex items-center gap-2">

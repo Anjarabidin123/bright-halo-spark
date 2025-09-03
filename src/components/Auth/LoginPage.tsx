@@ -273,14 +273,7 @@ export const LoginPage = () => {
               >
                 Lupa Password?
               </Button>
-              <Button 
-                type="button" 
-                variant="ghost" 
-                className="w-full text-sm" 
-                onClick={() => setShowSignUp(true)}
-              >
-                Buat Akun Baru
-              </Button>
+              {/* Sign up button removed for security */}
             </div>
           </form>
         </CardContent>
