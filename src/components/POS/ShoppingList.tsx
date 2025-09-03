@@ -204,21 +204,19 @@ export const ShoppingList = () => {
                   {pendingItems.length} pending
                 </Badge>
                 {completedItems.length > 0 && (
+                  <Badge variant="outline">
+                    {completedItems.length} selesai
+                  </Badge>
+                )}
+                
+                {/* Always show PDF and Share buttons */}
+                {items.length > 0 && (
                   <>
-                    <Badge variant="outline">
-                      {completedItems.length} selesai
-                    </Badge>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleClearCompleted}
-                    >
-                      Hapus Selesai
-                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={handleDownloadPDF}
+                      title="Download PDF daftar belanja"
                     >
                       <Download className="h-3 w-3 mr-1" />
                       PDF
@@ -227,11 +225,22 @@ export const ShoppingList = () => {
                       size="sm"
                       variant="outline"
                       onClick={handleSharePDF}
+                      title="Bagikan daftar belanja"
                     >
                       <Share2 className="h-3 w-3 mr-1" />
                       Bagikan
                     </Button>
                   </>
+                )}
+                
+                {completedItems.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleClearCompleted}
+                  >
+                    Hapus Selesai
+                  </Button>
                 )}
               </div>
             </CardTitle>

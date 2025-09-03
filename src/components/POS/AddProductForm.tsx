@@ -138,8 +138,6 @@ export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) =
                   </Select>
                 </div>
 
-                {/* Stock management temporarily disabled for testing */}
-                {/* 
                 <div className="md:col-span-2">
                   <Label>Jumlah Stok (opsional)</Label>
                   <QuantitySelector
@@ -150,7 +148,6 @@ export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) =
                     showUnitSelector={true}
                   />
                 </div>
-                */}
                 
                 <div className="flex items-center space-x-2">
                   <input

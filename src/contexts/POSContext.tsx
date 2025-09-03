@@ -26,19 +26,22 @@ export const POSProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const supabasePOS = useSupabasePOS();
   const localPOS = usePOS();
-  const [manualReceipts, setManualReceipts] = useState<Receipt[]>([]);
 
   const addManualReceipt = (receipt: Receipt) => {
-    setManualReceipts(prev => [...prev, receipt]);
+    // Always use Supabase if user is logged in for consistent data
+    if (user) {
+      // Manual receipts will be stored in Supabase automatically through processTransaction
+      return;
+    }
+    // Fallback for local storage when not logged in - just log it since local POS doesn't support this
+    console.log('Manual receipt would be added locally:', receipt);
   };
 
-  // Use Supabase data when user is logged in, otherwise use local data
+  // Always use Supabase when user is logged in for real-time sync
   const currentPOS = user ? supabasePOS : localPOS;
-  const allReceipts = [...currentPOS.receipts, ...manualReceipts];
 
   const contextValue = {
     ...currentPOS,
-    receipts: allReceipts,
     addManualReceipt,
   };
 

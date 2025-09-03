@@ -15,6 +15,7 @@ interface WebBluetoothDevice {
 export class HybridThermalPrinter {
   private webDevice: WebBluetoothDevice | null = null;
   private webCharacteristic: any = null;
+  private connectionHistory: Set<string> = new Set();
 
   async connect(): Promise<boolean> {
     // Use native Bluetooth if running in Capacitor (mobile app)
@@ -76,6 +77,11 @@ export class HybridThermalPrinter {
 
       console.log(`Connecting to device: ${this.webDevice.name || 'Unknown'}`);
       
+      // Add device to connection history for multi-device support
+      if (this.webDevice.id) {
+        this.connectionHistory.add(this.webDevice.id);
+      }
+      
       const connectionPromise = this.webDevice.gatt.connect();
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Connection timeout')), 15000)
@@ -113,8 +119,13 @@ export class HybridThermalPrinter {
     } catch (error: any) {
       console.error('Failed to connect to web printer:', error);
       
-      if (error.message?.includes('User cancelled')) {
-        console.error('User cancelled device selection');
+      // Don't show error toast for user cancellation - this is normal behavior
+      if (error.message?.includes('User cancelled') || 
+          error.name === 'NotFoundError' ||
+          error.message?.includes('cancel')) {
+        console.log('User cancelled device selection - this is normal');
+        // Just return false, no error message needed
+        return false;
       } else if (error.message?.includes('Bluetooth adapter not available')) {
         console.error('Bluetooth tidak aktif di perangkat');
       }
@@ -208,6 +219,14 @@ export class HybridThermalPrinter {
       return `Native App (${Capacitor.getPlatform()})`;
     }
     return 'Web Browser';
+  }
+
+  getConnectionHistory(): string[] {
+    return Array.from(this.connectionHistory);
+  }
+
+  clearConnectionHistory(): void {
+    this.connectionHistory.clear();
   }
 }
 

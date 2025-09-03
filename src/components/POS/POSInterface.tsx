@@ -11,6 +11,7 @@ import { ReceiptHistory } from './ReceiptHistory';
 import { ManualInvoice } from './ManualInvoice';
 import { ShoppingList } from './ShoppingList';
 import { AdminProtection } from '@/components/Auth/AdminProtection';
+import { BluetoothManager } from './BluetoothManager';
 import { usePOSContext } from '@/contexts/POSContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Receipt as ReceiptType, Product } from '@/types/pos';
@@ -318,6 +319,9 @@ Profit: ${formatPrice(receipt.profit)}
             </div>
             
             <div className="flex items-center gap-2 sm:gap-4">
+              {/* Bluetooth Manager */}
+              <BluetoothManager />
+              
               {/* Thermal Print Status */}
               {(lastReceipt || selectedReceipt) && (
                 <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-md border">
