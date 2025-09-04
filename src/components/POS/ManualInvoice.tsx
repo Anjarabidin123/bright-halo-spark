@@ -144,19 +144,19 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
       return;
     }
 
-    // Generate invoice ID
+    // Generate invoice ID with correct format
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const year = String(now.getFullYear()).slice(-2);
     const dateStr = `${day}${month}${year}`;
     const counter = receipts.length + 1;
-    const invoiceId = `MANUAL-${counter}${dateStr}`;
+    const invoiceId = `MNL-${counter}${dateStr}`;
 
     // Convert manual items to cart items format
     const cartItems = items.map(item => ({
       product: {
-        id: item.id,
+        id: 'manual', // Use 'manual' as ID for manual items
         name: item.name,
         costPrice: 0, // No cost price for manual items
         sellPrice: item.isPhotocopy ? item.total : (item.unitPrice || 0),

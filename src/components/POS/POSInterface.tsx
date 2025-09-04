@@ -32,7 +32,7 @@ import {
   LogOut,
   Settings
 } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 
 export const POSInterface = () => {
   const {
@@ -523,7 +523,12 @@ Profit: ${formatPrice(receipt.profit)}
               </TabsList>
               
               <TabsContent value="add-product" className="space-y-4">
-                <AddProductForm onAddProduct={addProduct} onClose={() => {}} />
+                <AddProductForm 
+                  onAddProduct={addProduct} 
+                  onUpdateProduct={updateProduct}
+                  products={products}
+                  onClose={() => {}} 
+                />
               </TabsContent>
               
               <TabsContent value="stock-management" className="space-y-4">
@@ -563,7 +568,15 @@ Profit: ${formatPrice(receipt.profit)}
           <TabsContent value="reports" className="space-y-4">
             <Card className="pos-card">
               <CardHeader>
-                <CardTitle>Ringkasan Penjualan Hari Ini</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  Ringkasan Penjualan Hari Ini
+                  <Link to="/reports">
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      Laporan Lengkap
+                    </Button>
+                  </Link>
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

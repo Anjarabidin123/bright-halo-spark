@@ -11,10 +11,12 @@ import { QuantitySelector } from './QuantitySelector';
 
 interface AddProductFormProps {
   onAddProduct: (product: Omit<Product, 'id'>) => void;
+  onUpdateProduct?: (productId: string, updates: Partial<Product>) => void;
+  products?: Product[];
   onClose: () => void;
 }
 
-export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) => {
+export const AddProductForm = ({ onAddProduct, onUpdateProduct, products = [], onClose }: AddProductFormProps) => {
   const [formData, setFormData] = useState({
     name: '',
     costPrice: '',
@@ -25,22 +27,41 @@ export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) =
   });
   const [isService, setIsService] = useState(false);
   const [stockQuantity, setStockQuantity] = useState(0);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.sellPrice || !formData.costPrice) {
+    if (!formData.name || !formData.sellPrice) {
       return;
     }
 
-    onAddProduct({
-      name: formData.name,
-      costPrice: parseFloat(formData.costPrice),
-      sellPrice: parseFloat(formData.sellPrice),
-      stock: (formData.isPhotocopy || isService) ? 0 : (stockQuantity || 0),
-      category: formData.category || undefined,
-      isPhotocopy: formData.isPhotocopy,
-    });
+    // Check if product with same name already exists
+    const existingProduct = products.find(p => 
+      p.name.toLowerCase().trim() === formData.name.toLowerCase().trim()
+    );
+
+    if (existingProduct && onUpdateProduct) {
+      // Update existing product stock
+      onUpdateProduct(existingProduct.id, {
+        stock: existingProduct.stock + (stockQuantity || 0),
+        costPrice: parseFloat(formData.costPrice) || existingProduct.costPrice,
+        sellPrice: parseFloat(formData.sellPrice) || existingProduct.sellPrice,
+        category: formData.category || existingProduct.category,
+      });
+    } else {
+      // Create new product
+      onAddProduct({
+        name: formData.name,
+        costPrice: parseFloat(formData.costPrice) || 0,
+        sellPrice: parseFloat(formData.sellPrice),
+        stock: (formData.isPhotocopy || isService) ? 0 : (stockQuantity || 0),
+        category: formData.category || undefined,
+        isPhotocopy: formData.isPhotocopy,
+      });
+    }
 
     setFormData({
       name: '',
@@ -54,6 +75,54 @@ export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) =
     setIsService(false);
     
     onClose();
+  };
+
+  const handleNameChange = (value: string) => {
+    setFormData({ ...formData, name: value });
+    
+    if (value.length > 0) {
+      const filtered = products.filter(product =>
+        product.name.toLowerCase().includes(value.toLowerCase())
+      ).slice(0, 5);
+      setSuggestions(filtered);
+      setShowSuggestions(filtered.length > 0);
+      setSelectedSuggestionIndex(0);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev => 
+        prev < suggestions.length - 1 ? prev + 1 : prev
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : prev);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      selectSuggestion(suggestions[selectedSuggestionIndex]);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectSuggestion = (product: Product) => {
+    setFormData({
+      name: product.name,
+      costPrice: product.costPrice.toString(),
+      sellPrice: product.sellPrice.toString(),
+      stock: '',
+      category: product.category || '',
+      isPhotocopy: product.isPhotocopy || false,
+    });
+    setShowSuggestions(false);
+    setSuggestions([]);
   };
 
   return (
@@ -78,20 +147,41 @@ export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) =
           <TabsContent value="product">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="relative">
                   <Label htmlFor="name">Nama Produk *</Label>
                   <Input
                     id="name"
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    onKeyDown={handleKeyDown}
                     placeholder="Masukkan nama produk"
                     required
                   />
+                  {showSuggestions && (
+                    <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg">
+                      {suggestions.map((product, index) => (
+                        <div
+                          key={product.id}
+                          className={`px-3 py-2 cursor-pointer ${
+                            index === selectedSuggestionIndex 
+                              ? 'bg-primary text-primary-foreground' 
+                              : 'hover:bg-muted'
+                          }`}
+                          onClick={() => selectSuggestion(product)}
+                        >
+                          <div className="font-medium">{product.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Stok: {product.stock} | {product.category}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 
                 <div>
-                  <Label htmlFor="costPrice">Harga Kulakan *</Label>
+                  <Label htmlFor="costPrice">Harga Kulakan (opsional)</Label>
                   <Input
                     id="costPrice"
                     type="number"
@@ -100,7 +190,6 @@ export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) =
                     placeholder="0"
                     min="0"
                     step="100"
-                    required
                   />
                 </div>
                 
@@ -178,20 +267,41 @@ export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) =
           <TabsContent value="service">
             <form onSubmit={(e) => { setIsService(true); handleSubmit(e); }} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="relative">
                   <Label htmlFor="serviceName">Nama Layanan *</Label>
                   <Input
                     id="serviceName"
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    onKeyDown={handleKeyDown}
                     placeholder="Masukkan nama layanan"
                     required
                   />
+                  {showSuggestions && (
+                    <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg">
+                      {suggestions.map((product, index) => (
+                        <div
+                          key={product.id}
+                          className={`px-3 py-2 cursor-pointer ${
+                            index === selectedSuggestionIndex 
+                              ? 'bg-primary text-primary-foreground' 
+                              : 'hover:bg-muted'
+                          }`}
+                          onClick={() => selectSuggestion(product)}
+                        >
+                          <div className="font-medium">{product.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Stok: {product.stock} | {product.category}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 
                 <div>
-                  <Label htmlFor="serviceCost">Biaya Operasional *</Label>
+                  <Label htmlFor="serviceCost">Biaya Operasional (opsional)</Label>
                   <Input
                     id="serviceCost"
                     type="number"
@@ -200,7 +310,6 @@ export const AddProductForm = ({ onAddProduct, onClose }: AddProductFormProps) =
                     placeholder="0"
                     min="0"
                     step="100"
-                    required
                   />
                 </div>
                 

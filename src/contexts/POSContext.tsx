@@ -16,7 +16,7 @@ interface POSContextType {
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
   processTransaction: (paymentMethod?: string, discount?: number) => Receipt | null | Promise<Receipt | null>;
-  addManualReceipt: (receipt: Receipt) => void;
+  addManualReceipt: (receipt: Receipt) => void | Promise<void>;
   formatPrice: (price: number) => string;
 }
 
@@ -27,14 +27,14 @@ export const POSProvider = ({ children }: { children: ReactNode }) => {
   const supabasePOS = useSupabasePOS();
   const localPOS = usePOS();
 
-  const addManualReceipt = (receipt: Receipt) => {
+  const addManualReceipt = async (receipt: Receipt) => {
     // Always use Supabase if user is logged in for consistent data
-    if (user) {
-      // Manual receipts will be stored in Supabase automatically through processTransaction
+    if (user && supabasePOS.addManualReceipt) {
+      await supabasePOS.addManualReceipt(receipt);
       return;
     }
-    // Fallback for local storage when not logged in - just log it since local POS doesn't support this
-    console.log('Manual receipt would be added locally:', receipt);
+    // Fallback for local storage when not logged in
+    localPOS.addManualReceipt?.(receipt);
   };
 
   // Always use Supabase when user is logged in for real-time sync

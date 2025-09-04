@@ -298,6 +298,13 @@ export const usePOS = () => {
     return `Rp ${new Intl.NumberFormat('id-ID').format(price)}`;
   };
 
+  const addManualReceipt = (receipt: Receipt) => {
+    setPosState(prev => ({
+      ...prev,
+      receipts: [...prev.receipts, receipt],
+    }));
+  };
+
   return {
     ...posState,
     addProduct,
@@ -307,6 +314,7 @@ export const usePOS = () => {
     updateCartQuantity,
     clearCart,
     processTransaction,
+    addManualReceipt,
     formatPrice,
   };
 };

@@ -89,7 +89,7 @@ export const useSupabasePOS = () => {
       const formattedReceipts: Receipt[] = receiptsData.map(receipt => ({
         id: receipt.id,
         items: receipt.receipt_items.map((item: any) => ({
-          product: {
+          product: item.products ? {
             id: item.products.id,
             name: item.products.name,
             costPrice: Number(item.products.cost_price),
@@ -98,6 +98,15 @@ export const useSupabasePOS = () => {
             barcode: item.products.barcode,
             category: item.products.category,
             isPhotocopy: item.products.is_photocopy
+          } : {
+            id: 'manual',
+            name: item.product_name,
+            costPrice: Number(item.cost_price),
+            sellPrice: Number(item.unit_price),
+            stock: 0,
+            barcode: null,
+            category: null,
+            isPhotocopy: false
           },
           quantity: item.quantity,
           finalPrice: item.final_price ? Number(item.final_price) : undefined
@@ -280,6 +289,65 @@ export const useSupabasePOS = () => {
     return receipt;
   };
 
+  const addManualReceipt = async (receipt: Receipt): Promise<void> => {
+    if (!user) return;
+
+    try {
+      // Generate new invoice number with correct format
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = String(now.getFullYear()).slice(-2);
+      const dateStr = `${day}${month}${year}`;
+      const counter = receipts.length + 1;
+      const invoiceNumber = `MNL-${counter}${dateStr}`;
+
+      // Save receipt to database
+      const { data: receiptData, error: receiptError } = await supabase
+        .from('receipts')
+        .insert({
+          user_id: user.id,
+          invoice_number: invoiceNumber,
+          subtotal: receipt.subtotal,
+          discount: receipt.discount,
+          total: receipt.total,
+          profit: receipt.profit,
+          payment_method: receipt.paymentMethod,
+          created_at: receipt.timestamp.toISOString()
+        })
+        .select()
+        .single();
+
+      if (receiptError) throw receiptError;
+
+      // Save receipt items
+      const receiptItems = receipt.items.map(item => ({
+        receipt_id: receiptData.id,
+        product_id: item.product.id === 'manual' ? null : item.product.id,
+        product_name: item.product.name,
+        quantity: item.quantity,
+        unit_price: item.finalPrice || item.product.sellPrice,
+        cost_price: item.product.costPrice,
+        total_price: (item.finalPrice || item.product.sellPrice) * item.quantity,
+        profit: ((item.finalPrice || item.product.sellPrice) - item.product.costPrice) * item.quantity
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('receipt_items')
+        .insert(receiptItems);
+
+      if (itemsError) throw itemsError;
+
+      toast.success(`Nota manual ${invoiceNumber} berhasil disimpan ke database`);
+      
+      // Reload receipts to show the new manual receipt
+      await loadReceipts();
+    } catch (error) {
+      console.error('Error saving manual receipt:', error);
+      toast.error('Gagal menyimpan nota manual ke database');
+    }
+  };
+
   const formatPrice = (price: number): string => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -300,6 +368,7 @@ export const useSupabasePOS = () => {
     removeFromCart,
     clearCart,
     processTransaction: processTransactionWrapper,
+    addManualReceipt,
     formatPrice,
   };
 };
