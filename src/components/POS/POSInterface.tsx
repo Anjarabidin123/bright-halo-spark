@@ -12,9 +12,10 @@ import { ManualInvoice } from './ManualInvoice';
 import { ShoppingList } from './ShoppingList';
 import { AdminProtection } from '@/components/Auth/AdminProtection';
 import { BluetoothManager } from './BluetoothManager';
-import { usePOSContext } from '@/contexts/POSContext';
+import { useSupabasePOS } from '@/hooks/useSupabasePOS';
 import { useAuth } from '@/contexts/AuthContext';
 import { Receipt as ReceiptType, Product } from '@/types/pos';
+import { OperatingHours } from '@/components/Auth/OperatingHours';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,20 +36,22 @@ import {
 import { useLocation, Link } from 'react-router-dom';
 
 export const POSInterface = () => {
-  const {
-    products,
-    cart,
-    receipts,
-    addProduct,
+  const { 
+    products, 
+    cart, 
+    receipts, 
+    loading, 
+    addProduct, 
     updateProduct,
-    addToCart,
-    updateCartQuantity,
-    removeFromCart,
-    clearCart,
-    processTransaction,
+    deleteProduct,
+    addToCart, 
+    updateCartQuantity, 
+    removeFromCart, 
+    clearCart, 
+    processTransaction, 
     addManualReceipt,
-    formatPrice,
-  } = usePOSContext();
+    formatPrice 
+  } = useSupabasePOS();
 
   const { signOut } = useAuth();
   const location = useLocation();
@@ -300,6 +303,7 @@ Profit: ${formatPrice(receipt.profit)}
   };
 
   return (
+    <OperatingHours>
     <div className="min-h-screen w-full bg-background">
       {/* Header */}
       <header className="border-b bg-card shadow-sm w-full">
@@ -482,6 +486,7 @@ Profit: ${formatPrice(receipt.profit)}
                 <StockManagement 
                   products={products}
                   onUpdateProduct={updateProduct}
+                  onDeleteProduct={deleteProduct}
                   formatPrice={formatPrice}
                   showLowStockOnly={false}
                   readOnly={true}
@@ -492,6 +497,7 @@ Profit: ${formatPrice(receipt.profit)}
                 <StockManagement 
                   products={products}
                   onUpdateProduct={updateProduct}
+                  onDeleteProduct={deleteProduct}
                   formatPrice={formatPrice}
                   showLowStockOnly={true}
                   readOnly={true}
@@ -535,6 +541,7 @@ Profit: ${formatPrice(receipt.profit)}
                 <StockManagement 
                   products={products}
                   onUpdateProduct={updateProduct}
+                  onDeleteProduct={deleteProduct}
                   formatPrice={formatPrice}
                   showLowStockOnly={false}
                   readOnly={false}
@@ -617,9 +624,8 @@ Profit: ${formatPrice(receipt.profit)}
             }}
             product={photocopyProduct}
             onAddToCart={addToCart}
-          />
         )}
       </div>
-    </div>
+    </OperatingHours>
   );
 };

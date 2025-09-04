@@ -172,6 +172,21 @@ export const useSupabasePOS = () => {
     }
   };
 
+  const deleteProduct = async (productId: string) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+
+      if (error) throw error;
+      toast.success('Produk berhasil dihapus');
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast.error('Gagal menghapus produk');
+    }
+  };
+
   const processTransaction = async (cart: CartItem[], paymentMethod?: string, discount: number = 0): Promise<Receipt | null> => {
     if (!user || cart.length === 0) return null;
 
@@ -372,6 +387,7 @@ export const useSupabasePOS = () => {
     loading,
     addProduct,
     updateProduct,
+    deleteProduct,
     addToCart,
     updateCartQuantity,
     removeFromCart,
