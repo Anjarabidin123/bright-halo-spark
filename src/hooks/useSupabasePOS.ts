@@ -184,6 +184,15 @@ export const useSupabasePOS = () => {
         sum + ((item.finalPrice || item.product.sellPrice) - item.product.costPrice) * item.quantity, 0
       );
 
+      // Generate proper invoice number using the new function
+      const { data: invoiceNumberData, error: invoiceError } = await supabase
+        .rpc('generate_invoice_number_v2', { is_manual: false });
+      
+      if (invoiceError) {
+        console.error('Error generating invoice number:', invoiceError);
+        throw invoiceError;
+      }
+
       // Create receipt
       const { data: receiptData, error: receiptError } = await supabase
         .from('receipts')
@@ -194,7 +203,7 @@ export const useSupabasePOS = () => {
           total,
           profit,
           payment_method: paymentMethod,
-          invoice_number: `INV-${Date.now()}`
+          invoice_number: invoiceNumberData
         })
         .select()
         .single();
@@ -293,14 +302,14 @@ export const useSupabasePOS = () => {
     if (!user) return;
 
     try {
-      // Generate new invoice number with correct format
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, '0');
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const year = String(now.getFullYear()).slice(-2);
-      const dateStr = `${day}${month}${year}`;
-      const counter = receipts.length + 1;
-      const invoiceNumber = `MNL-${counter}${dateStr}`;
+      // Generate proper manual invoice number using the new function
+      const { data: invoiceNumber, error: invoiceError } = await supabase
+        .rpc('generate_invoice_number_v2', { is_manual: true });
+      
+      if (invoiceError) {
+        console.error('Error generating manual invoice number:', invoiceError);
+        throw invoiceError;
+      }
 
       // Save receipt to database
       const { data: receiptData, error: receiptError } = await supabase

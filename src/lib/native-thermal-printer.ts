@@ -8,8 +8,14 @@ export class NativeThermalPrinter {
 
   async initialize(): Promise<void> {
     if (Capacitor.isNativePlatform()) {
-      await BleClient.initialize();
-      console.log('Native BLE initialized');
+      try {
+        // Request Bluetooth permissions first
+        await BleClient.initialize({ androidNeverForLocation: true });
+        console.log('Native BLE initialized with permissions');
+      } catch (error) {
+        console.error('Failed to initialize BLE:', error);
+        throw error;
+      }
     }
   }
 
@@ -23,25 +29,56 @@ export class NativeThermalPrinter {
       
       await this.initialize();
 
-      // Request permission and scan for devices
-      const devices = await BleClient.requestLEScan({
-        services: [
-          '000018f0-0000-1000-8000-00805f9b34fb', // Thermal printer service
-          '49535343-fe7d-4ae5-8fa9-9fafd205e455', // HM-10 module
-          '0000ff00-0000-1000-8000-00805f9b34fb', // Custom service UUID
-          '6e400001-b5a3-f393-e0a9-e50e24dcca9e'  // Nordic UART Service
-        ]
-      }, (result) => {
-        console.log('Found device:', result.device.name || result.device.deviceId);
+      // Check if Bluetooth is enabled
+      const isEnabled = await BleClient.isEnabled();
+      if (!isEnabled) {
+        throw new Error('Bluetooth tidak aktif. Mohon aktifkan Bluetooth terlebih dahulu.');
+      }
+
+      // Start scanning with timeout
+      const scanPromise = new Promise<BleDevice[]>((resolve, reject) => {
+        const foundDevices: BleDevice[] = [];
+        
+        const scanTimeout = setTimeout(async () => {
+          try {
+            await BleClient.stopLEScan();
+            if (foundDevices.length === 0) {
+              reject(new Error('Tidak ditemukan printer thermal dalam jangkauan'));
+            } else {
+              resolve(foundDevices);
+            }
+          } catch (e) {
+            reject(e);
+          }
+        }, 10000);
+
+        BleClient.requestLEScan({
+          // Scan for all devices first, then filter
+          allowDuplicates: false
+        }, (result) => {
+          console.log('Found device:', result.device.name || result.device.deviceId);
+          
+          // Add devices with name containing thermal/printer keywords or known service UUIDs
+          const deviceName = (result.device.name || '').toLowerCase();
+          if (deviceName.includes('thermal') || 
+              deviceName.includes('printer') || 
+              deviceName.includes('pos') ||
+              deviceName.includes('mtp') ||
+              deviceName.includes('rpp') ||
+              result.device.name) { // Include all named devices for user selection
+            
+            const existing = foundDevices.find(d => d.deviceId === result.device.deviceId);
+            if (!existing) {
+              foundDevices.push(result.device);
+            }
+          }
+        }).catch((error) => {
+          clearTimeout(scanTimeout);
+          reject(error);
+        });
       });
 
-      // Stop scanning after 10 seconds
-      setTimeout(async () => {
-        await BleClient.stopLEScan();
-      }, 10000);
-
-      // For now, let's use a manual device selection approach
-      const deviceList = await BleClient.getDevices([]);
+      const deviceList = await scanPromise;
       
       if (deviceList.length === 0) {
         throw new Error('Tidak ditemukan printer thermal Bluetooth');
