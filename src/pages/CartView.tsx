@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ShoppingCart as CartIcon, ArrowLeft, Printer, CreditCard, Bluetooth } from 'lucide-react';
-import { thermalPrinter } from '@/lib/thermal-printer';
+import { bluetoothPrinter } from '@/lib/bluetooth-printer';
 import { formatThermalReceipt, formatPrintReceipt } from '@/lib/receipt-formatter';
 import { usePOSContext } from '@/contexts/POSContext';
 import { useToast } from '@/hooks/use-toast';
@@ -53,7 +53,7 @@ export const CartView = () => {
     if (receipt) {
       try {
         const thermalContent = formatThermalReceipt(receipt, formatPrice);
-        const success = await thermalPrinter.print(thermalContent);
+        const success = await bluetoothPrinter.print(thermalContent);
         
         if (success) {
           toast({

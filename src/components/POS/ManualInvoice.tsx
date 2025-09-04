@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Receipt as ReceiptIcon, CreditCard, Percent, Printer, Copy, Bluetooth } from 'lucide-react';
 import { Receipt as ReceiptType, Product } from '@/types/pos';
 import { toast } from 'sonner';
-import { hybridThermalPrinter } from '@/lib/hybrid-thermal-printer';
+import { bluetoothPrinter } from '@/lib/bluetooth-printer';
 import { formatThermalReceipt } from '@/lib/receipt-formatter';
 
 interface ManualItem {
@@ -27,9 +27,10 @@ interface ManualInvoiceProps {
   receipts: ReceiptType[];
   onPrintReceipt?: (receipt: ReceiptType) => void;
   products: Product[];
+  processManualTransaction?: (cart: any[], paymentMethod?: string, discount?: number) => Promise<ReceiptType | null>;
 }
 
-export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintReceipt, products }: ManualInvoiceProps) => {
+export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintReceipt, products, processManualTransaction }: ManualInvoiceProps) => {
   const [items, setItems] = useState<ManualItem[]>([]);
   const [currentItem, setCurrentItem] = useState({
     name: '',
@@ -138,25 +139,16 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
     : discount;
   const total = Math.max(0, subtotal - discountAmount);
 
-  const handleCreateInvoice = () => {
+  const handleCreateInvoice = async () => {
     if (items.length === 0) {
       toast.error('Tambahkan minimal satu item!');
       return;
     }
 
-    // Generate invoice ID with correct format
-    const now = new Date();
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = String(now.getFullYear()).slice(-2);
-    const dateStr = `${day}${month}${year}`;
-    const counter = receipts.length + 1;
-    const invoiceId = `MNL-${counter}${dateStr}`;
-
     // Convert manual items to cart items format
     const cartItems = items.map(item => ({
       product: {
-        id: 'manual', // Use 'manual' as ID for manual items
+        id: item.id,
         name: item.name,
         costPrice: 0, // No cost price for manual items
         sellPrice: item.isPhotocopy ? item.total : (item.unitPrice || 0),
@@ -168,34 +160,53 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
       finalPrice: item.isPhotocopy ? item.total : (item.unitPrice || 0)
     }));
 
-    const receipt: ReceiptType = {
-      id: invoiceId,
-      items: cartItems,
-      subtotal,
-      discount: discountAmount,
-      total,
-      profit: total, // All manual invoice income is profit since no cost
-      timestamp: new Date(),
-      paymentMethod
-    };
+    let receipt: ReceiptType | null = null;
 
-    onCreateInvoice(receipt);
+    if (processManualTransaction) {
+      // Use database transaction
+      receipt = await processManualTransaction(cartItems, paymentMethod, discountAmount);
+    } else {
+      // Fallback to local processing
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = String(now.getFullYear()).slice(-2);
+      const dateStr = `${day}${month}${year}`;
+      const counter = receipts.length + 1;
+      const invoiceId = `MNL-${counter}${dateStr}`;
+
+      receipt = {
+        id: invoiceId,
+        items: cartItems,
+        subtotal,
+        discount: discountAmount,
+        total,
+        profit: total, // All manual invoice income is profit since no cost
+        timestamp: new Date(),
+        paymentMethod
+      };
+    }
+
+    if (receipt) {
+      onCreateInvoice(receipt);
+      
+      // Reset form
+      setItems([]);
+      setCurrentItem({ name: '', quantity: 0, unitPrice: 0, isPhotocopy: false });
+      setCurrentPhotocopy({ productId: '', total: 0 });
+      setDiscount(0);
+      setPaymentMethod('cash');
+      
+      toast.success(`Nota manual ${receipt.id} berhasil dibuat dan disimpan ke database!`);
+    }
     
-    // Reset form
-    setItems([]);
-    setCurrentItem({ name: '', quantity: 0, unitPrice: 0, isPhotocopy: false });
-    setCurrentPhotocopy({ productId: '', total: 0 });
-    setDiscount(0);
-    setPaymentMethod('cash');
-    
-    toast.success(`Nota manual ${invoiceId} berhasil dibuat!`);
     return receipt;
   };
 
   const handleConnectBluetooth = async () => {
     setIsConnecting(true);
     try {
-      const connected = await hybridThermalPrinter.connect();
+      const connected = await bluetoothPrinter.connect();
       setIsBluetoothConnected(connected);
       if (connected) {
         toast.success('Bluetooth printer berhasil terhubung!');
@@ -212,7 +223,7 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
   };
 
   const handlePrintOnly = async () => {
-    const receipt = handleCreateInvoice();
+    const receipt = await handleCreateInvoice();
     if (!receipt) return;
 
     if (!isBluetoothConnected) {
@@ -222,7 +233,7 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
 
     try {
       const receiptText = formatThermalReceipt(receipt, formatPrice);
-      const printed = await hybridThermalPrinter.print(receiptText);
+      const printed = await bluetoothPrinter.print(receiptText);
       
       if (printed) {
         toast.success('Nota berhasil dicetak!');
@@ -236,12 +247,12 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
   };
 
   const handlePrintInvoice = async () => {
-    const receipt = handleCreateInvoice();
+    const receipt = await handleCreateInvoice();
     if (!receipt) return;
 
     try {
       // Connect to thermal printer
-      const connected = await hybridThermalPrinter.connect();
+      const connected = await bluetoothPrinter.connect();
       if (!connected) {
         toast.error('Gagal terhubung ke printer thermal');
         return;
@@ -249,7 +260,7 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
 
       // Format and print receipt
       const receiptText = formatThermalReceipt(receipt, formatPrice);
-      const printed = await hybridThermalPrinter.print(receiptText);
+      const printed = await bluetoothPrinter.print(receiptText);
       
       if (printed) {
         toast.success('Nota berhasil dicetak!');

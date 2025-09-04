@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProductGrid } from './ProductGrid';
 import { ShoppingCart } from './ShoppingCart';
@@ -11,11 +11,9 @@ import { ReceiptHistory } from './ReceiptHistory';
 import { ManualInvoice } from './ManualInvoice';
 import { ShoppingList } from './ShoppingList';
 import { AdminProtection } from '@/components/Auth/AdminProtection';
-import { BluetoothManager } from './BluetoothManager';
-import { useSupabasePOS } from '@/hooks/useSupabasePOS';
+import { usePOSContext } from '@/contexts/POSContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Receipt as ReceiptType, Product } from '@/types/pos';
-import { OperatingHours } from '@/components/Auth/OperatingHours';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,27 +29,30 @@ import {
   DollarSign,
   BarChart3,
   LogOut,
-  Settings
+  Settings,
+  Bluetooth,
+  BluetoothConnected
 } from 'lucide-react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+import { bluetoothPrinter } from '@/lib/bluetooth-printer';
+import { useToast } from '@/hooks/use-toast';
 
 export const POSInterface = () => {
-  const { 
-    products, 
-    cart, 
-    receipts, 
-    loading, 
-    addProduct, 
+  const {
+    products,
+    cart,
+    receipts,
+    addProduct,
     updateProduct,
-    deleteProduct,
-    addToCart, 
-    updateCartQuantity, 
-    removeFromCart, 
-    clearCart, 
-    processTransaction, 
+    addToCart,
+    updateCartQuantity,
+    removeFromCart,
+    clearCart,
+    processTransaction,
+    processManualTransaction,
     addManualReceipt,
-    formatPrice 
-  } = useSupabasePOS();
+    formatPrice,
+  } = usePOSContext();
 
   const { signOut } = useAuth();
   const location = useLocation();
@@ -63,32 +64,8 @@ export const POSInterface = () => {
   const [currentTab, setCurrentTab] = useState('pos');
   const [showAdminProtection, setShowAdminProtection] = useState(false);
   const [pendingAdminAction, setPendingAdminAction] = useState<string | null>(null);
-
-  // Global Enter key support for thermal printing
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-        // Only trigger if not in an input/textarea/contenteditable element
-        const target = e.target as Element;
-        if (target && 
-            target.tagName !== 'INPUT' && 
-            target.tagName !== 'TEXTAREA' && 
-            target.getAttribute('contenteditable') !== 'true') {
-          
-          if (lastReceipt) {
-            e.preventDefault();
-            handlePrintThermal(lastReceipt);
-          } else if (selectedReceipt) {
-            e.preventDefault();
-            handlePrintThermal(selectedReceipt);
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleGlobalKeyDown);
-    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [lastReceipt, selectedReceipt]);
+  const [bluetoothConnected, setBluetoothConnected] = useState(false);
+  const { toast } = useToast();
 
   const handleProcessTransaction = async (paymentMethod?: string, discount?: number) => {
     const receipt = await processTransaction(paymentMethod, discount);
@@ -128,6 +105,41 @@ export const POSInterface = () => {
       setCurrentTab(pendingAdminAction);
       setPendingAdminAction(null);
     }
+    setShowAdminProtection(false);
+  };
+
+  const handleBluetoothConnect = async () => {
+    try {
+      const success = await bluetoothPrinter.connect();
+      if (success) {
+        setBluetoothConnected(true);
+        toast({
+          title: "Bluetooth Terhubung",
+          description: "Printer thermal berhasil terhubung!",
+        });
+      } else {
+        toast({
+          title: "Gagal Terhubung",
+          description: "Tidak dapat terhubung ke printer thermal.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat menghubungkan Bluetooth.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBluetoothDisconnect = () => {
+    bluetoothPrinter.disconnect();
+    setBluetoothConnected(false);
+    toast({
+      title: "Bluetooth Terputus",
+      description: "Printer thermal telah terputus.",
+    });
   };
 
   const handleLogout = async () => {
@@ -144,57 +156,13 @@ export const POSInterface = () => {
   };
 
   const handleManualInvoice = (receipt: ReceiptType) => {
-    // Add manual invoice to receipts
-    addManualReceipt(receipt);
-    
     // View the created receipt
     setSelectedReceipt(receipt);
     setCurrentTab('receipt');
   };
 
-  const handlePrintThermal = async (receipt: ReceiptType) => {
-    try {
-      // Import thermal printer and formatter
-      const { hybridThermalPrinter } = await import('@/lib/hybrid-thermal-printer');
-      const { formatThermalReceipt } = await import('@/lib/receipt-formatter');
-      const { toast } = await import('sonner');
-      
-      // Try thermal printing first
-      if (hybridThermalPrinter.isConnected()) {
-        const receiptText = formatThermalReceipt(receipt, formatPrice);
-        const printed = await hybridThermalPrinter.print(receiptText);
-        
-        if (printed) {
-          toast.success('Struk berhasil dicetak ke thermal printer!');
-          return;
-        }
-      }
-      
-      // Fallback to thermal printer connection attempt
-      const connected = await hybridThermalPrinter.connect();
-      if (connected) {
-        const receiptText = formatThermalReceipt(receipt, formatPrice);
-        const printed = await hybridThermalPrinter.print(receiptText);
-        
-        if (printed) {
-          toast.success('Thermal printer terhubung dan struk berhasil dicetak!');
-          return;
-        }
-      }
-      
-      // Ultimate fallback to browser printing if thermal printing fails
-      toast.info('Thermal printer tidak tersedia, menggunakan printer browser...');
-      handleBrowserPrint(receipt);
-    } catch (error) {
-      console.error('Print error:', error);
-      const { toast } = await import('sonner');
-      toast.error('Terjadi kesalahan saat mencetak.');
-      toast.error('Thermal printer gagal, menggunakan printer browser...');
-      handleBrowserPrint(receipt);
-    }
-  };
-
-  const handleBrowserPrint = (receipt: ReceiptType) => {
+  const handlePrintThermal = (receipt: ReceiptType) => {
+    // Direct thermal printing for browser compatibility
     const printContent = `
 ===============================
    TOKO ANJAR
@@ -224,7 +192,7 @@ Profit: ${formatPrice(receipt.profit)}
 ===============================
 `;
 
-    // Browser print fallback
+    // Optimized browser print for mobile
     const printWindow = window.open('', '_blank', 'width=300,height=600');
     if (printWindow) {
       printWindow.document.write(`
@@ -303,8 +271,7 @@ Profit: ${formatPrice(receipt.profit)}
   };
 
   return (
-    <OperatingHours>
-      <div className="min-h-screen w-full bg-background">
+    <div className="min-h-screen w-full bg-background">
       {/* Header */}
       <header className="border-b bg-card shadow-sm w-full">
         <div className="w-full px-2 sm:px-4 py-3 sm:py-4">
@@ -323,18 +290,22 @@ Profit: ${formatPrice(receipt.profit)}
             </div>
             
             <div className="flex items-center gap-2 sm:gap-4">
-              {/* Bluetooth Manager */}
-              <BluetoothManager />
-              
-              {/* Thermal Print Status */}
-              {(lastReceipt || selectedReceipt) && (
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-md border">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-xs text-muted-foreground">
-                    Tekan <kbd className="px-1 py-0.5 bg-muted rounded text-xs font-mono">Enter</kbd> untuk print thermal
-                  </span>
-                </div>
-              )}
+              {/* Bluetooth Connection Button */}
+              <Button
+                variant={bluetoothConnected ? "default" : "outline"}
+                size="sm"
+                onClick={bluetoothConnected ? handleBluetoothDisconnect : handleBluetoothConnect}
+                className="flex items-center gap-2"
+              >
+                {bluetoothConnected ? (
+                  <BluetoothConnected className="h-4 w-4" />
+                ) : (
+                  <Bluetooth className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">
+                  {bluetoothConnected ? 'Terputus' : 'Bluetooth'}
+                </span>
+              </Button>
               
               <Button
                 variant="outline"
@@ -470,6 +441,7 @@ Profit: ${formatPrice(receipt.profit)}
                   receipts={receipts}
                   products={products}
                   onAddToCart={addToCart}
+                  bluetoothConnected={bluetoothConnected}
                 />
               </div>
             </div>
@@ -486,7 +458,6 @@ Profit: ${formatPrice(receipt.profit)}
                 <StockManagement 
                   products={products}
                   onUpdateProduct={updateProduct}
-                  onDeleteProduct={deleteProduct}
                   formatPrice={formatPrice}
                   showLowStockOnly={false}
                   readOnly={true}
@@ -497,7 +468,6 @@ Profit: ${formatPrice(receipt.profit)}
                 <StockManagement 
                   products={products}
                   onUpdateProduct={updateProduct}
-                  onDeleteProduct={deleteProduct}
                   formatPrice={formatPrice}
                   showLowStockOnly={true}
                   readOnly={true}
@@ -513,6 +483,7 @@ Profit: ${formatPrice(receipt.profit)}
               receipts={receipts}
               onPrintReceipt={handlePrintThermal}
               products={products}
+              processManualTransaction={processManualTransaction}
             />
           </TabsContent>
 
@@ -541,7 +512,6 @@ Profit: ${formatPrice(receipt.profit)}
                 <StockManagement 
                   products={products}
                   onUpdateProduct={updateProduct}
-                  onDeleteProduct={deleteProduct}
                   formatPrice={formatPrice}
                   showLowStockOnly={false}
                   readOnly={false}
@@ -575,15 +545,7 @@ Profit: ${formatPrice(receipt.profit)}
           <TabsContent value="reports" className="space-y-4">
             <Card className="pos-card">
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  Ringkasan Penjualan Hari Ini
-                  <Link to="/reports">
-                    <Button variant="outline" size="sm" className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4" />
-                      Laporan Lengkap
-                    </Button>
-                  </Link>
-                </CardTitle>
+                <CardTitle>Ringkasan Penjualan Hari Ini</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -627,7 +589,6 @@ Profit: ${formatPrice(receipt.profit)}
           />
         )}
       </div>
-      </div>
-    </OperatingHours>
+    </div>
   );
 };

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ShoppingCart as CartIcon, Trash2, CreditCard, Percent, Printer, Edit, ExternalLink, Bluetooth, Plus } from 'lucide-react';
-import { thermalPrinter } from '@/lib/thermal-printer';
+import { bluetoothPrinter } from '@/lib/bluetooth-printer';
 import { formatThermalReceipt } from '@/lib/receipt-formatter';
 import { toast } from 'sonner';
 import { QuantitySelector } from './QuantitySelector';
@@ -29,6 +29,7 @@ interface ShoppingCartProps {
   receipts?: ReceiptType[];
   products?: Product[];
   onAddToCart?: (product: Product, quantity?: number) => void;
+  bluetoothConnected?: boolean;
 }
 
 export const ShoppingCart = ({
@@ -42,7 +43,8 @@ export const ShoppingCart = ({
   onViewReceipt,
   receipts = [],
   products = [],
-  onAddToCart
+  onAddToCart,
+  bluetoothConnected = false
 }: ShoppingCartProps) => {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [discount, setDiscount] = useState(0);
@@ -77,6 +79,22 @@ export const ShoppingCart = ({
     }
   };
 
+  // Add keyboard shortcut for Enter key to process transaction
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && cart.length > 0 && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        // Only trigger if not typing in an input field
+        const activeElement = document.activeElement;
+        if (activeElement?.tagName !== 'INPUT' && activeElement?.tagName !== 'TEXTAREA') {
+          handleThermalPrint();
+        }
+      }
+    };
+
+    document.addEventListener('keypress', handleKeyPress);
+    return () => document.removeEventListener('keypress', handleKeyPress);
+  }, [cart, paymentMethod, discountAmount]);
+
   const handlePrintToReceipt = async () => {
     const receipt = await processTransaction(paymentMethod, discountAmount);
     if (receipt) {
@@ -91,20 +109,33 @@ export const ShoppingCart = ({
     const receipt = await processTransaction(paymentMethod, discountAmount);
     if (receipt) {
       try {
+        // Hubungkan ke printer Bluetooth
+        if (!bluetoothPrinter.isConnected()) {
+          toast.info('Menghubungkan ke printer Bluetooth...');
+          const connected = await bluetoothPrinter.connect();
+          
+          if (!connected) {
+            toast.error('Gagal terhubung ke printer Bluetooth. Periksa koneksi dan coba lagi.');
+            return;
+          }
+          
+          toast.success(`Terhubung ke printer via ${bluetoothPrinter.getPlatform()}`);
+        }
+
         const thermalContent = formatThermalReceipt(receipt, formatPrice);
-        const success = await thermalPrinter.print(thermalContent);
+        const success = await bluetoothPrinter.print(thermalContent);
         
         if (success) {
-          toast.success('Nota berhasil dicetak!');
+          toast.success('Nota berhasil dicetak via Bluetooth!');
           setPaymentMethod('cash');
           setDiscount(0);
           setDiscountType('amount');
         } else {
-          toast.error('Gagal mencetak nota. Pastikan printer terhubung.');
+          toast.error('Gagal mencetak nota. Periksa koneksi printer.');
         }
       } catch (error) {
         console.error('Print error:', error);
-        toast.error('Terjadi kesalahan saat mencetak.');
+        toast.error('Terjadi kesalahan saat mencetak via Bluetooth.');
       }
     }
   };
@@ -186,10 +217,11 @@ export const ShoppingCart = ({
                 size="sm"
                 variant="outline"
                 onClick={handleThermalPrint}
-                className="h-5 w-5 sm:h-6 sm:w-6 p-0"
-                title="Print Thermal"
+                className="h-5 w-5 sm:h-6 sm:w-6 p-0 relative"
+                title="Print via Bluetooth"
               >
                 <Printer className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                <Bluetooth className="h-1.5 w-1.5 absolute -top-0.5 -right-0.5 text-primary" />
               </Button>
               <Button
                 size="sm"
@@ -347,10 +379,10 @@ export const ShoppingCart = ({
             <Button 
               className="w-full h-8 sm:h-10 text-xs sm:text-sm"
               variant="default"
-              onClick={handlePrintToReceipt}
+              onClick={handleThermalPrint}
             >
-              <Printer className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-              Buat Nota
+              <Bluetooth className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+              Print Bluetooth
             </Button>
             
             <Button 

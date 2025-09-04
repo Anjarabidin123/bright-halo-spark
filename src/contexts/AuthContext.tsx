@@ -65,21 +65,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signInWithUsername = async (username: string, password: string) => {
-    // Use RPC with SECURITY DEFINER to bypass RLS when not authenticated
-    const { data, error } = await supabase.rpc('get_user_by_username_or_email', {
-      identifier: username,
-    });
+    // Get user by username
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('username', username)
+      .single();
 
-    if (error || !data || (Array.isArray(data) && data.length === 0)) {
+    if (profileError || !profiles) {
       return { error: { message: 'Username tidak ditemukan' } };
     }
 
-    const record = Array.isArray(data) ? data[0] : data;
-    if (!record?.email) {
-      return { error: { message: 'Username tidak ditemukan' } };
-    }
-
-    return signIn(record.email, password);
+    return signIn(profiles.email, password);
   };
 
   const signOut = async () => {
@@ -87,8 +84,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const verifyAdminPassword = async (password: string): Promise<boolean> => {
-    // Simplified to use the same constant as AdminProtection to avoid DB dependency
-    return password === '122344566';
+    // Simple admin password check - you can modify this logic
+    return password === 'admin123';
   };
 
   const value = {

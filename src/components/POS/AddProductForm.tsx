@@ -8,15 +8,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, X } from 'lucide-react';
 import { Product } from '@/types/pos';
 import { QuantitySelector } from './QuantitySelector';
+import { toast } from 'sonner';
 
 interface AddProductFormProps {
   onAddProduct: (product: Omit<Product, 'id'>) => void;
-  onUpdateProduct?: (productId: string, updates: Partial<Product>) => void;
-  products?: Product[];
+  onUpdateProduct: (productId: string, updates: Partial<Product>) => void;
+  products: Product[];
   onClose: () => void;
 }
 
-export const AddProductForm = ({ onAddProduct, onUpdateProduct, products = [], onClose }: AddProductFormProps) => {
+export const AddProductForm = ({ onAddProduct, onUpdateProduct, products, onClose }: AddProductFormProps) => {
   const [formData, setFormData] = useState({
     name: '',
     costPrice: '',
@@ -27,40 +28,46 @@ export const AddProductForm = ({ onAddProduct, onUpdateProduct, products = [], o
   });
   const [isService, setIsService] = useState(false);
   const [stockQuantity, setStockQuantity] = useState(0);
-  const [suggestions, setSuggestions] = useState<Product[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.sellPrice) {
+    if (!formData.name || !formData.sellPrice || !formData.costPrice || (!stockQuantity && !formData.isPhotocopy && !isService)) {
       return;
     }
 
     // Check if product with same name already exists
-    const existingProduct = products.find(p => 
-      p.name.toLowerCase().trim() === formData.name.toLowerCase().trim()
+    const existingProduct = products.find(product => 
+      product.name.toLowerCase() === formData.name.toLowerCase()
     );
 
-    if (existingProduct && onUpdateProduct) {
-      // Update existing product stock
-      onUpdateProduct(existingProduct.id, {
-        stock: existingProduct.stock + (stockQuantity || 0),
-        costPrice: parseFloat(formData.costPrice) || existingProduct.costPrice,
-        sellPrice: parseFloat(formData.sellPrice) || existingProduct.sellPrice,
-        category: formData.category || existingProduct.category,
-      });
+    if (existingProduct) {
+      // Update existing product - only add stock, prices are optional
+      const updates: Partial<Product> = {
+        stock: existingProduct.stock + stockQuantity
+      };
+      
+      // Only update prices if they are different and provided
+      if (formData.costPrice && parseFloat(formData.costPrice) !== existingProduct.costPrice) {
+        updates.costPrice = parseFloat(formData.costPrice);
+      }
+      if (formData.sellPrice && parseFloat(formData.sellPrice) !== existingProduct.sellPrice) {
+        updates.sellPrice = parseFloat(formData.sellPrice);
+      }
+      
+      onUpdateProduct(existingProduct.id, updates);
+      toast.success(`Stok ${existingProduct.name} berhasil ditambah ${stockQuantity} unit!`);
     } else {
-      // Create new product
+      // Add new product
       onAddProduct({
         name: formData.name,
-        costPrice: parseFloat(formData.costPrice) || 0,
+        costPrice: parseFloat(formData.costPrice),
         sellPrice: parseFloat(formData.sellPrice),
-        stock: (formData.isPhotocopy || isService) ? 0 : (stockQuantity || 0),
+        stock: (formData.isPhotocopy || isService) ? 0 : stockQuantity,
         category: formData.category || undefined,
         isPhotocopy: formData.isPhotocopy,
       });
+      toast.success(`Produk ${formData.name} berhasil ditambahkan!`);
     }
 
     setFormData({
@@ -75,54 +82,6 @@ export const AddProductForm = ({ onAddProduct, onUpdateProduct, products = [], o
     setIsService(false);
     
     onClose();
-  };
-
-  const handleNameChange = (value: string) => {
-    setFormData({ ...formData, name: value });
-    
-    if (value.length > 0) {
-      const filtered = products.filter(product =>
-        product.name.toLowerCase().includes(value.toLowerCase())
-      ).slice(0, 5);
-      setSuggestions(filtered);
-      setShowSuggestions(filtered.length > 0);
-      setSelectedSuggestionIndex(0);
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!showSuggestions || suggestions.length === 0) return;
-    
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setSelectedSuggestionIndex(prev => 
-        prev < suggestions.length - 1 ? prev + 1 : prev
-      );
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : prev);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      selectSuggestion(suggestions[selectedSuggestionIndex]);
-    } else if (e.key === 'Escape') {
-      setShowSuggestions(false);
-    }
-  };
-
-  const selectSuggestion = (product: Product) => {
-    setFormData({
-      name: product.name,
-      costPrice: product.costPrice.toString(),
-      sellPrice: product.sellPrice.toString(),
-      stock: '',
-      category: product.category || '',
-      isPhotocopy: product.isPhotocopy || false,
-    });
-    setShowSuggestions(false);
-    setSuggestions([]);
   };
 
   return (
@@ -147,35 +106,42 @@ export const AddProductForm = ({ onAddProduct, onUpdateProduct, products = [], o
           <TabsContent value="product">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
+                <div>
                   <Label htmlFor="name">Nama Produk *</Label>
                   <Input
                     id="name"
                     type="text"
                     value={formData.name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    onKeyDown={handleKeyDown}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      setFormData({ ...formData, name });
+                      
+                      // Auto-fill prices if product exists
+                      const existingProduct = products.find(p => 
+                        p.name.toLowerCase() === name.toLowerCase()
+                      );
+                      if (existingProduct && !formData.costPrice && !formData.sellPrice) {
+                        setFormData(prev => ({
+                          ...prev,
+                          name,
+                          costPrice: existingProduct.costPrice.toString(),
+                          sellPrice: existingProduct.sellPrice.toString(),
+                          category: existingProduct.category || ''
+                        }));
+                      }
+                    }}
                     placeholder="Masukkan nama produk"
                     required
+                    list="existing-products"
                   />
-                  {showSuggestions && (
-                    <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg">
-                      {suggestions.map((product, index) => (
-                        <div
-                          key={product.id}
-                          className={`px-3 py-2 cursor-pointer ${
-                            index === selectedSuggestionIndex 
-                              ? 'bg-primary text-primary-foreground' 
-                              : 'hover:bg-muted'
-                          }`}
-                          onClick={() => selectSuggestion(product)}
-                        >
-                          <div className="font-medium">{product.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            Stok: {product.stock} | {product.category}
-                          </div>
-                        </div>
-                      ))}
+                  <datalist id="existing-products">
+                    {products.map(product => (
+                      <option key={product.id} value={product.name} />
+                    ))}
+                  </datalist>
+                  {products.find(p => p.name.toLowerCase() === formData.name.toLowerCase()) && (
+                    <div className="mt-1 text-xs text-info">
+                      ℹ️ Produk sudah ada. Hanya menambah stok (harga opsional untuk update).
                     </div>
                   )}
                 </div>
@@ -190,11 +156,12 @@ export const AddProductForm = ({ onAddProduct, onUpdateProduct, products = [], o
                     placeholder="0"
                     min="0"
                     step="100"
+                    required={!products.find(p => p.name.toLowerCase() === formData.name.toLowerCase())}
                   />
                 </div>
                 
                 <div>
-                  <Label htmlFor="sellPrice">Harga Jual *</Label>
+                  <Label htmlFor="sellPrice">Harga Jual (opsional)</Label>
                   <Input
                     id="sellPrice"
                     type="number"
@@ -203,7 +170,7 @@ export const AddProductForm = ({ onAddProduct, onUpdateProduct, products = [], o
                     placeholder="0"
                     min="0"
                     step="100"
-                    required
+                    required={!products.find(p => p.name.toLowerCase() === formData.name.toLowerCase())}
                   />
                 </div>
                 
@@ -228,7 +195,7 @@ export const AddProductForm = ({ onAddProduct, onUpdateProduct, products = [], o
                 </div>
 
                 <div className="md:col-span-2">
-                  <Label>Jumlah Stok (opsional)</Label>
+                  <Label>Jumlah Stok *</Label>
                   <QuantitySelector
                     quantity={stockQuantity}
                     productName={formData.name}
@@ -267,41 +234,20 @@ export const AddProductForm = ({ onAddProduct, onUpdateProduct, products = [], o
           <TabsContent value="service">
             <form onSubmit={(e) => { setIsService(true); handleSubmit(e); }} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
+                <div>
                   <Label htmlFor="serviceName">Nama Layanan *</Label>
                   <Input
                     id="serviceName"
                     type="text"
                     value={formData.name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    onKeyDown={handleKeyDown}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Masukkan nama layanan"
                     required
                   />
-                  {showSuggestions && (
-                    <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg">
-                      {suggestions.map((product, index) => (
-                        <div
-                          key={product.id}
-                          className={`px-3 py-2 cursor-pointer ${
-                            index === selectedSuggestionIndex 
-                              ? 'bg-primary text-primary-foreground' 
-                              : 'hover:bg-muted'
-                          }`}
-                          onClick={() => selectSuggestion(product)}
-                        >
-                          <div className="font-medium">{product.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            Stok: {product.stock} | {product.category}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
                 
                 <div>
-                  <Label htmlFor="serviceCost">Biaya Operasional (opsional)</Label>
+                  <Label htmlFor="serviceCost">Biaya Operasional *</Label>
                   <Input
                     id="serviceCost"
                     type="number"
@@ -310,6 +256,7 @@ export const AddProductForm = ({ onAddProduct, onUpdateProduct, products = [], o
                     placeholder="0"
                     min="0"
                     step="100"
+                    required
                   />
                 </div>
                 

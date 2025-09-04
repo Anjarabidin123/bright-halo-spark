@@ -9,10 +9,8 @@ import {
   Search,
   AlertTriangle,
   Plus,
-  Minus,
-  Trash2
+  Minus
 } from 'lucide-react';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Product } from '@/types/pos';
 import { getUnitOptions } from '@/lib/units';
 import { QuantitySelector } from './QuantitySelector';
@@ -20,7 +18,6 @@ import { QuantitySelector } from './QuantitySelector';
 interface StockManagementProps {
   products: Product[];
   onUpdateProduct: (productId: string, updates: Partial<Product>) => void;
-  onDeleteProduct?: (productId: string) => void;
   formatPrice: (price: number) => string;
   showLowStockOnly?: boolean;
   readOnly?: boolean;
@@ -29,7 +26,6 @@ interface StockManagementProps {
 export const StockManagement = ({ 
   products, 
   onUpdateProduct, 
-  onDeleteProduct,
   formatPrice,
   showLowStockOnly = false,
   readOnly = false
@@ -51,15 +47,27 @@ export const StockManagement = ({
   const [stockInputs, setStockInputs] = useState<Record<string, number>>({});
   const [selectedUnits, setSelectedUnits] = useState<Record<string, string>>({});
 
-  // Stock management temporarily disabled for testing
   const handleStockUpdate = (productId: string, change: number) => {
-    // Temporarily disabled for testing
-    console.log('Stock update disabled for testing');
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      const newStock = Math.max(0, product.stock + change);
+      onUpdateProduct(productId, { stock: newStock });
+    }
   };
 
   const handleBulkStockAdd = (productId: string) => {
-    // Temporarily disabled for testing  
-    console.log('Bulk stock add disabled for testing');
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      const quantity = stockInputs[productId] || 1;
+      const unit = selectedUnits[productId] || 'pcs';
+      const unitOptions = getUnitOptions(product.name);
+      const multiplier = unitOptions.find(opt => opt.value === unit)?.multiplier || 1;
+      const totalQuantity = quantity * multiplier;
+      
+      onUpdateProduct(productId, { stock: product.stock + totalQuantity });
+      setStockInputs({ ...stockInputs, [productId]: 1 });
+      setSelectedUnits({ ...selectedUnits, [productId]: 'pcs' });
+    }
   };
 
   return (
@@ -157,67 +165,30 @@ export const StockManagement = ({
                   </Badge>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {/* Stock adjustment temporarily disabled for testing */}
-                  {false && !product.isPhotocopy && !readOnly && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleStockUpdate(product.id, -1)}
-                        disabled={product.stock <= 0}
-                        className="h-7 w-7 p-0"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleStockUpdate(product.id, 1)}
-                        className="h-7 w-7 p-0"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Delete Product Button */}
-                  {onDeleteProduct && !readOnly && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 w-7 p-0 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Hapus Produk</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Apakah Anda yakin ingin menghapus produk "{product.name}"? 
-                            Tindakan ini tidak dapat dibatalkan.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Batal</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => onDeleteProduct(product.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Hapus
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </div>
+                {!product.isPhotocopy && !readOnly && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleStockUpdate(product.id, -1)}
+                      disabled={product.stock <= 0}
+                      className="h-7 w-7 p-0"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleStockUpdate(product.id, 1)}
+                      className="h-7 w-7 p-0"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
               </div>
 
-              {/* Bulk stock management temporarily disabled for testing */}
-              {false && !product.isPhotocopy && !readOnly && (
+              {!product.isPhotocopy && !readOnly && (
                 <div className="mt-3 p-3 bg-muted/50 rounded border">
                   <div className="text-xs font-medium mb-2">Tambah Stok:</div>
                   <div className="flex items-center gap-2">
