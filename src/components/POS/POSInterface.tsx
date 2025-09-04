@@ -304,7 +304,7 @@ Profit: ${formatPrice(receipt.profit)}
 
   return (
     <OperatingHours>
-    <div className="min-h-screen w-full bg-background">
+      <div className="min-h-screen w-full bg-background">
       {/* Header */}
       <header className="border-b bg-card shadow-sm w-full">
         <div className="w-full px-2 sm:px-4 py-3 sm:py-4">
@@ -624,7 +624,9 @@ Profit: ${formatPrice(receipt.profit)}
             }}
             product={photocopyProduct}
             onAddToCart={addToCart}
+          />
         )}
+      </div>
       </div>
     </OperatingHours>
   );
