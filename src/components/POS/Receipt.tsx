@@ -70,7 +70,7 @@ export const Receipt = ({ receipt, formatPrice, onBack }: ReceiptProps) => {
       printWindow.document.write(`
         <html>
           <head>
-            <title>Struk Penjualan - ${receipt.id}</title>
+            <title>Struk Penjualan - ${receipt.invoiceNumber || receipt.id}</title>
             <style>
               body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
               @media print {
@@ -109,7 +109,7 @@ export const Receipt = ({ receipt, formatPrice, onBack }: ReceiptProps) => {
       printWindow.document.write(`
         <html>
           <head>
-            <title>Struk Penjualan - ${receipt.id}</title>
+            <title>Struk Penjualan - ${receipt.invoiceNumber || receipt.id}</title>
             <style>
               body { margin: 0; padding: 20px; }
               @media print {
@@ -152,7 +152,7 @@ export const Receipt = ({ receipt, formatPrice, onBack }: ReceiptProps) => {
         <div className="text-center">
           <div className="font-mono text-lg font-bold">STRUK PENJUALAN</div>
           <div className="text-sm text-muted-foreground">
-            {receipt.id}
+            {receipt.invoiceNumber || receipt.id}
           </div>
           <div className="text-sm text-muted-foreground">
             {formatDate(receipt.timestamp)}
@@ -237,7 +237,7 @@ export const Receipt = ({ receipt, formatPrice, onBack }: ReceiptProps) => {
           className="w-full"
           onClick={() => {
             const receiptData = `data:text/plain;charset=utf-8,${encodeURIComponent(
-              `TOKO ANJAR FOTOCOPY & ATK\n${receipt.id}\n${formatDate(receipt.timestamp)}\n\n${
+              `TOKO ANJAR FOTOCOPY & ATK\n${receipt.invoiceNumber || receipt.id}\n${formatDate(receipt.timestamp)}\n\n${
                 receipt.items.map(item => {
                   const price = item.finalPrice || item.product.sellPrice;
                   return `${item.product.name}\n${formatPrice(price)} × ${item.quantity} = ${formatPrice(price * item.quantity)}`;
@@ -246,7 +246,7 @@ export const Receipt = ({ receipt, formatPrice, onBack }: ReceiptProps) => {
             )}`;
             const link = document.createElement('a');
             link.href = receiptData;
-            link.download = `receipt-${receipt.id}.txt`;
+            link.download = `receipt-${receipt.invoiceNumber || receipt.id}.txt`;
             link.click();
           }}
         >

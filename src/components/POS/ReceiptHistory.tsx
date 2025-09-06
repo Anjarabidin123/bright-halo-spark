@@ -69,7 +69,7 @@ export const ReceiptHistory = ({
   const filteredReceipts = receipts
     .filter(getDateFilter())
     .filter(receipt => 
-      receipt.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (receipt.invoiceNumber || receipt.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
       receipt.items.some(item => 
         item.product.name.toLowerCase().includes(searchTerm.toLowerCase())
       )
@@ -214,7 +214,7 @@ export const ReceiptHistory = ({
                   className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <div className="font-semibold text-sm">{receipt.id}</div>
+                    <div className="font-semibold text-sm">{receipt.invoiceNumber || receipt.id}</div>
                     <div className="font-bold text-lg text-primary">
                       {formatPrice(receipt.total)}
                     </div>

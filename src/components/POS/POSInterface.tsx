@@ -167,7 +167,7 @@ export const POSInterface = () => {
 ===============================
    TOKO ANJAR
 ===============================
-Invoice: ${receipt.id}
+Invoice: ${receipt.invoiceNumber || receipt.id}
 Tanggal: ${new Date(receipt.timestamp).toLocaleDateString('id-ID')}
 Waktu: ${new Date(receipt.timestamp).toLocaleTimeString('id-ID')}
 -------------------------------

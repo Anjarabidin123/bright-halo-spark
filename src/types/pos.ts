@@ -17,6 +17,7 @@ export interface CartItem {
 
 export interface Receipt {
   id: string;
+  invoiceNumber?: string; // Human-readable invoice code (e.g., inv-123456)
   items: CartItem[];
   subtotal: number;
   discount: number; // Discount amount

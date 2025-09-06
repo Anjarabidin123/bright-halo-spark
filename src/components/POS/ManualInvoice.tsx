@@ -225,7 +225,7 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
       setDiscount(0);
       setPaymentMethod('cash');
       
-      toast.success(`Nota manual ${receipt.id} berhasil dibuat dan disimpan ke database!`);
+      toast.success(`Nota manual ${receipt.invoiceNumber || receipt.id} berhasil dibuat dan disimpan ke database!`);
       
       // Navigate to receipts page after successful creation
       if (onNavigateToReceipts) {

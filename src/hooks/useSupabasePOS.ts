@@ -88,6 +88,7 @@ export const useSupabasePOS = () => {
 
       const formattedReceipts: Receipt[] = receiptsData.map((receipt: any) => ({
         id: receipt.id,
+        invoiceNumber: receipt.invoice_number,
         items: receipt.receipt_items.map((item: any) => ({
           product: {
             id: item.product_id || 'manual',
@@ -226,6 +227,7 @@ export const useSupabasePOS = () => {
 
       const receipt: Receipt = {
         id: receiptData!.id,
+        invoiceNumber: receiptData!.invoice_number,
         items: cart,
         subtotal,
         discount,

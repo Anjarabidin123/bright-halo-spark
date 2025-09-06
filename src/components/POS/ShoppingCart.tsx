@@ -171,7 +171,7 @@ export const ShoppingCart = ({
                     onClick={() => onViewReceipt?.(receipt)}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <div className="font-medium text-xs">{receipt.id}</div>
+                      <div className="font-medium text-xs">{receipt.invoiceNumber || receipt.id}</div>
                       <div className="font-semibold text-xs">
                         {formatPrice(receipt.total)}
                       </div>
@@ -414,7 +414,7 @@ export const ShoppingCart = ({
                   onClick={() => onViewReceipt?.(receipt)}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <div className="font-medium text-xs">{receipt.id}</div>
+                    <div className="font-medium text-xs">{receipt.invoiceNumber || receipt.id}</div>
                     <div className="font-semibold text-xs">
                       {formatPrice(receipt.total)}
                     </div>

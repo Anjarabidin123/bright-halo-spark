@@ -28,7 +28,7 @@ export const CartView = () => {
     if (receipt) {
       toast({
         title: "Transaksi Berhasil",
-        description: `Invoice ${receipt.id} telah dibuat`,
+        description: `Invoice ${receipt.invoiceNumber || receipt.id} telah dibuat`,
       });
       clearCart();
       navigate('/', { state: { viewReceipt: receipt } });
@@ -88,7 +88,7 @@ export const CartView = () => {
       printWindow.document.write(`
         <html>
           <head>
-            <title>Struk Penjualan - ${receipt.id}</title>
+            <title>Struk Penjualan - ${receipt.invoiceNumber || receipt.id}</title>
             <style>
               body { margin: 0; padding: 20px; }
               @media print {
@@ -233,7 +233,7 @@ export const CartView = () => {
                         onClick={() => navigate('/', { state: { viewReceipt: receipt } })}
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <div className="font-medium text-sm">{receipt.id}</div>
+                          <div className="font-medium text-sm">{receipt.invoiceNumber || receipt.id}</div>
                           <div className="font-semibold text-sm">
                             {formatPrice(receipt.total)}
                           </div>

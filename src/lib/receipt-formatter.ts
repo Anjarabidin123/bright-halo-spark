@@ -34,7 +34,7 @@ Telp/WA: 0895630183347
 ${BOLD_ON}================================${BOLD_OFF}
 ${BOLD_ON}STRUK PENJUALAN${BOLD_OFF}
 ${BOLD_ON}================================${BOLD_OFF}
-Invoice: ${BOLD_ON}${receipt.id}${BOLD_OFF}
+Invoice: ${BOLD_ON}${receipt.invoiceNumber || receipt.id}${BOLD_OFF}
 Tanggal: ${formatDate(receipt.timestamp)}
 ${BOLD_ON}--------------------------------${BOLD_OFF}
 ${LEFT}
@@ -106,7 +106,7 @@ Telp/WA: 0895630183347
 ${BOLD_ON}================================================${BOLD_OFF}
 ${BOLD_ON}${CENTER}           STRUK PENJUALAN           ${BOLD_OFF}
 ${BOLD_ON}================================================${BOLD_OFF}
-${LEFT}Invoice: ${BOLD_ON}${receipt.id}${BOLD_OFF}
+${LEFT}Invoice: ${BOLD_ON}${receipt.invoiceNumber || receipt.id}${BOLD_OFF}
 Tanggal: ${formatDate(receipt.timestamp)}
 ${BOLD_ON}------------------------------------------------${BOLD_OFF}
 
@@ -172,7 +172,7 @@ export const formatPrintReceipt = (receipt: ReceiptType, formatPrice: (price: nu
         <div style="text-center; margin: 16px 0;">
           <div style="font-family: monospace; font-size: 18px; font-weight: bold; margin-bottom: 8px;">STRUK PENJUALAN</div>
           <div style="font-size: 14px; color: #666; margin-bottom: 4px;">
-            ${receipt.id}
+            ${receipt.invoiceNumber || receipt.id}
           </div>
           <div style="font-size: 14px; color: #666;">
             ${formatDate(receipt.timestamp)}
@@ -256,7 +256,7 @@ export const formatMobileA4PrintReceipt = (receipt: ReceiptType, formatPrice: (p
         
         <div style="text-align: center; margin-bottom: 30px;">
           <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 10px;">STRUK PENJUALAN</h2>
-          <p style="font-size: 16px; margin-bottom: 5px;">${receipt.id}</p>
+          <p style="font-size: 16px; margin-bottom: 5px;">${receipt.invoiceNumber || receipt.id}</p>
           <p style="font-size: 16px; margin-bottom: 0;">${formatDate(receipt.timestamp)}</p>
         </div>
         

@@ -100,7 +100,7 @@ export const SalesReport = ({ receipts, formatPrice }: SalesReportProps) => {
           ${filteredReceipts.map(receipt => `
             <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #ccc;">
               <div style="display: flex; justify-content: space-between; font-weight: bold;">
-                <span>${receipt.id}</span>
+                <span>${receipt.invoiceNumber || receipt.id}</span>
                 <span>${format(new Date(receipt.timestamp), 'dd/MM HH:mm', { locale: id })}</span>
               </div>
               ${receipt.items.map(item => `
