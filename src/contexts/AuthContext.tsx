@@ -66,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithUsername = async (username: string, password: string) => {
     // Get user by username
-    const { data: profiles, error: profileError } = await supabase
+    const { data: profiles, error: profileError } = await (supabase as any)
       .from('profiles')
       .select('email')
       .eq('username', username)

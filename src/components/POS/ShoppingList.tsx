@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,8 @@ import {
   AlertTriangle 
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ShoppingItem {
   id: string;
@@ -28,7 +30,9 @@ interface ShoppingItem {
 }
 
 export const ShoppingList = () => {
+  const { user } = useAuth();
   const [items, setItems] = useState<ShoppingItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newItem, setNewItem] = useState({
     name: '',
     quantity: '',
@@ -43,36 +47,126 @@ export const ShoppingList = () => {
     notes: ''
   });
 
-  const addItem = () => {
+  // Load shopping items from database
+  useEffect(() => {
+    if (user) {
+      loadShoppingItems();
+    }
+  }, [user]);
+
+  const loadShoppingItems = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await (supabase as any)
+        .from('shopping_items')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedItems: ShoppingItem[] = data.map(item => ({
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity || undefined,
+        currentStock: item.current_stock || undefined,
+        notes: item.notes || undefined,
+        isCompleted: item.is_completed,
+        dateAdded: new Date(item.created_at)
+      }));
+
+      setItems(formattedItems);
+    } catch (error) {
+      console.error('Error loading shopping items:', error);
+      toast.error('Gagal memuat daftar belanja');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addItem = async () => {
     if (!newItem.name.trim()) {
       toast.error('Nama barang harus diisi!');
       return;
     }
 
-    const item: ShoppingItem = {
-      id: Date.now().toString(),
-      name: newItem.name.trim(),
-      quantity: newItem.quantity ? Number(newItem.quantity) : undefined,
-      currentStock: newItem.currentStock ? Number(newItem.currentStock) : undefined,
-      notes: newItem.notes.trim() || undefined,
-      isCompleted: false,
-      dateAdded: new Date()
-    };
+    if (!user) {
+      toast.error('Anda harus login terlebih dahulu!');
+      return;
+    }
 
-    setItems(prev => [item, ...prev]);
-    setNewItem({ name: '', quantity: '', currentStock: '', notes: '' });
-    toast.success('Item berhasil ditambahkan ke daftar belanja!');
+    try {
+      const { data, error } = await (supabase as any)
+        .from('shopping_items')
+        .insert({
+          user_id: user.id,
+          name: newItem.name.trim(),
+          quantity: newItem.quantity ? Number(newItem.quantity) : null,
+          current_stock: newItem.currentStock ? Number(newItem.currentStock) : null,
+          notes: newItem.notes.trim() || null,
+          is_completed: false
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const item: ShoppingItem = {
+        id: data.id,
+        name: data.name,
+        quantity: data.quantity || undefined,
+        currentStock: data.current_stock || undefined,
+        notes: data.notes || undefined,
+        isCompleted: data.is_completed,
+        dateAdded: new Date(data.created_at)
+      };
+
+      setItems(prev => [item, ...prev]);
+      setNewItem({ name: '', quantity: '', currentStock: '', notes: '' });
+      toast.success('Item berhasil ditambahkan ke daftar belanja!');
+    } catch (error) {
+      console.error('Error adding shopping item:', error);
+      toast.error('Gagal menambahkan item ke daftar belanja');
+    }
   };
 
-  const removeItem = (id: string) => {
-    setItems(prev => prev.filter(item => item.id !== id));
-    toast.success('Item dihapus dari daftar belanja');
+  const removeItem = async (id: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('shopping_items')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setItems(prev => prev.filter(item => item.id !== id));
+      toast.success('Item dihapus dari daftar belanja');
+    } catch (error) {
+      console.error('Error removing shopping item:', error);
+      toast.error('Gagal menghapus item');
+    }
   };
 
-  const toggleComplete = (id: string) => {
-    setItems(prev => prev.map(item => 
-      item.id === id ? { ...item, isCompleted: !item.isCompleted } : item
-    ));
+  const toggleComplete = async (id: string) => {
+    try {
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+
+      const { error } = await (supabase as any)
+        .from('shopping_items')
+        .update({ is_completed: !item.isCompleted })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setItems(prev => prev.map(item => 
+        item.id === id ? { ...item, isCompleted: !item.isCompleted } : item
+      ));
+    } catch (error) {
+      console.error('Error updating shopping item:', error);
+      toast.error('Gagal mengupdate status item');
+    }
   };
 
   const startEdit = (item: ShoppingItem) => {
@@ -85,25 +179,44 @@ export const ShoppingList = () => {
     });
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editForm.name.trim()) {
       toast.error('Nama barang harus diisi!');
       return;
     }
 
-    setItems(prev => prev.map(item => 
-      item.id === editingId ? {
-        ...item,
-        name: editForm.name.trim(),
-        quantity: editForm.quantity ? Number(editForm.quantity) : undefined,
-        currentStock: editForm.currentStock ? Number(editForm.currentStock) : undefined,
-        notes: editForm.notes.trim() || undefined
-      } : item
-    ));
+    if (!editingId) return;
 
-    setEditingId(null);
-    setEditForm({ name: '', quantity: '', currentStock: '', notes: '' });
-    toast.success('Item berhasil diperbarui!');
+    try {
+      const { error } = await (supabase as any)
+        .from('shopping_items')
+        .update({
+          name: editForm.name.trim(),
+          quantity: editForm.quantity ? Number(editForm.quantity) : null,
+          current_stock: editForm.currentStock ? Number(editForm.currentStock) : null,
+          notes: editForm.notes.trim() || null
+        })
+        .eq('id', editingId);
+
+      if (error) throw error;
+
+      setItems(prev => prev.map(item => 
+        item.id === editingId ? {
+          ...item,
+          name: editForm.name.trim(),
+          quantity: editForm.quantity ? Number(editForm.quantity) : undefined,
+          currentStock: editForm.currentStock ? Number(editForm.currentStock) : undefined,
+          notes: editForm.notes.trim() || undefined
+        } : item
+      ));
+
+      setEditingId(null);
+      setEditForm({ name: '', quantity: '', currentStock: '', notes: '' });
+      toast.success('Item berhasil diperbarui!');
+    } catch (error) {
+      console.error('Error updating shopping item:', error);
+      toast.error('Gagal mengupdate item');
+    }
   };
 
   const cancelEdit = () => {
@@ -111,10 +224,24 @@ export const ShoppingList = () => {
     setEditForm({ name: '', quantity: '', currentStock: '', notes: '' });
   };
 
-  const clearCompleted = () => {
-    const completedCount = items.filter(item => item.isCompleted).length;
-    setItems(prev => prev.filter(item => !item.isCompleted));
-    toast.success(`${completedCount} item selesai dihapus dari daftar`);
+  const clearCompleted = async () => {
+    const completedItems = items.filter(item => item.isCompleted);
+    if (completedItems.length === 0) return;
+
+    try {
+      const { error } = await (supabase as any)
+        .from('shopping_items')
+        .delete()
+        .in('id', completedItems.map(item => item.id));
+
+      if (error) throw error;
+
+      setItems(prev => prev.filter(item => !item.isCompleted));
+      toast.success(`${completedItems.length} item selesai dihapus dari daftar`);
+    } catch (error) {
+      console.error('Error clearing completed items:', error);
+      toast.error('Gagal menghapus item selesai');
+    }
   };
 
   const pendingItems = items.filter(item => !item.isCompleted);
@@ -217,7 +344,12 @@ export const ShoppingList = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {items.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="text-muted-foreground mt-2">Memuat daftar belanja...</p>
+              </div>
+            ) : items.length === 0 ? (
               <div className="text-center py-8">
                 <CartIcon className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                 <p className="text-muted-foreground">

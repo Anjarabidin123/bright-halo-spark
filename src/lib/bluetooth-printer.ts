@@ -1,44 +1,9 @@
 import { Capacitor } from '@capacitor/core';
 import { BleClient, BleDevice, textToDataView } from '@capacitor-community/bluetooth-le';
 
-declare global {
-  interface Navigator {
-    bluetooth?: {
-      requestDevice(options: any): Promise<BluetoothDevice>;
-    };
-  }
-}
-
-interface BluetoothDevice {
-  gatt?: BluetoothRemoteGATTServer;
-  name?: string;
-  id: string;
-}
-
-interface BluetoothRemoteGATTServer {
-  connected: boolean;
-  connect(): Promise<BluetoothRemoteGATTServer>;
-  disconnect(): Promise<void>;
-  getPrimaryServices(): Promise<BluetoothRemoteGATTService[]>;
-}
-
-interface BluetoothRemoteGATTService {
-  uuid: string;
-  getCharacteristics(): Promise<BluetoothRemoteGATTCharacteristic[]>;
-}
-
-interface BluetoothRemoteGATTCharacteristic {
-  uuid: string;
-  properties: {
-    write: boolean;
-    writeWithoutResponse: boolean;
-  };
-  writeValue(value: ArrayBuffer): Promise<void>;
-}
-
 export class BluetoothPrinter {
-  private webDevice: BluetoothDevice | null = null;
-  private webCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
+  private webDevice: any = null;
+  private webCharacteristic: any = null;
   private nativeDevice: BleDevice | null = null;
   private nativeServiceUuid: string = '';
   private nativeCharacteristicUuid: string = '';
@@ -112,13 +77,13 @@ export class BluetoothPrinter {
     try {
       console.log('🌐 Menggunakan Web Bluetooth');
       
-      if (!navigator.bluetooth) {
+      if (!(navigator as any).bluetooth) {
         throw new Error('Browser tidak mendukung Web Bluetooth');
       }
 
       console.log('🔍 Scanning untuk semua device Bluetooth...');
       
-      this.webDevice = await navigator.bluetooth.requestDevice({
+      this.webDevice = await (navigator as any).bluetooth.requestDevice({
         acceptAllDevices: true,
         optionalServices: [
           '000018f0-0000-1000-8000-00805f9b34fb',
@@ -223,7 +188,7 @@ export class BluetoothPrinter {
       const chunkSize = 20;
       for (let i = 0; i < data.length; i += chunkSize) {
         const chunk = data.slice(i, i + chunkSize);
-        await this.webCharacteristic!.writeValue(chunk);
+        await this.webCharacteristic.writeValue(chunk);
         
         // Delay kecil antara chunk
         if (i + chunkSize < data.length) {
@@ -247,7 +212,7 @@ export class BluetoothPrinter {
         this.nativeServiceUuid = '';
         this.nativeCharacteristicUuid = '';
       } else if (this.webDevice?.gatt?.connected) {
-        await this.webDevice.gatt.disconnect();
+        this.webDevice.gatt.disconnect();
         this.webDevice = null;
         this.webCharacteristic = null;
       }

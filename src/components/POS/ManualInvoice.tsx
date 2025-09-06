@@ -28,9 +28,10 @@ interface ManualInvoiceProps {
   onPrintReceipt?: (receipt: ReceiptType) => void;
   products: Product[];
   processManualTransaction?: (cart: any[], paymentMethod?: string, discount?: number) => Promise<ReceiptType | null>;
+  onNavigateToReceipts?: () => void;
 }
 
-export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintReceipt, products, processManualTransaction }: ManualInvoiceProps) => {
+export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintReceipt, products, processManualTransaction, onNavigateToReceipts }: ManualInvoiceProps) => {
   const [items, setItems] = useState<ManualItem[]>([]);
   const [currentItem, setCurrentItem] = useState({
     name: '',
@@ -148,7 +149,7 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
     // Convert manual items to cart items format
     const cartItems = items.map(item => ({
       product: {
-        id: item.id,
+        id: `manual-${item.id}`, // Prefix with 'manual-' to identify manual items
         name: item.name,
         costPrice: 0, // No cost price for manual items
         sellPrice: item.isPhotocopy ? item.total : (item.unitPrice || 0),
@@ -163,8 +164,24 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
     let receipt: ReceiptType | null = null;
 
     if (processManualTransaction) {
-      // Use database transaction
+      // Use database transaction with special handling for photocopy profit
+      const photocopyTotal = cartItems
+        .filter(item => item.product.isPhotocopy)
+        .reduce((sum, item) => sum + (item.finalPrice || 0) * item.quantity, 0);
+      
+      const regularTotal = cartItems
+        .filter(item => !item.product.isPhotocopy)
+        .reduce((sum, item) => sum + (item.finalPrice || 0) * item.quantity, 0);
+
+      // For manual invoices: photocopy doesn't contribute to profit, only regular items do
+      const adjustedProfit = regularTotal - discountAmount * (regularTotal / subtotal);
+      
       receipt = await processManualTransaction(cartItems, paymentMethod, discountAmount);
+      
+      // Override profit calculation for manual invoices with photocopy
+      if (receipt && photocopyTotal > 0) {
+        receipt.profit = Math.max(0, adjustedProfit);
+      }
     } else {
       // Fallback to local processing
       const now = new Date();
@@ -175,13 +192,24 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
       const counter = receipts.length + 1;
       const invoiceId = `MNL-${counter}${dateStr}`;
 
+      // Calculate profit: photocopy earnings don't count as profit
+      const photocopyTotal = cartItems
+        .filter(item => item.product.isPhotocopy)
+        .reduce((sum, item) => sum + (item.finalPrice || 0) * item.quantity, 0);
+      
+      const regularTotal = cartItems
+        .filter(item => !item.product.isPhotocopy)
+        .reduce((sum, item) => sum + (item.finalPrice || 0) * item.quantity, 0);
+
+      const adjustedProfit = regularTotal - discountAmount * (regularTotal / subtotal);
+
       receipt = {
         id: invoiceId,
         items: cartItems,
         subtotal,
         discount: discountAmount,
         total,
-        profit: total, // All manual invoice income is profit since no cost
+        profit: Math.max(0, adjustedProfit),
         timestamp: new Date(),
         paymentMethod
       };
@@ -198,6 +226,13 @@ export const ManualInvoice = ({ onCreateInvoice, formatPrice, receipts, onPrintR
       setPaymentMethod('cash');
       
       toast.success(`Nota manual ${receipt.id} berhasil dibuat dan disimpan ke database!`);
+      
+      // Navigate to receipts page after successful creation
+      if (onNavigateToReceipts) {
+        setTimeout(() => {
+          onNavigateToReceipts();
+        }, 1000);
+      }
     }
     
     return receipt;

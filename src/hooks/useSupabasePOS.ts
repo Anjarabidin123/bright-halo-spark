@@ -41,14 +41,14 @@ export const useSupabasePOS = () => {
 
   const loadProducts = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('products')
         .select('*')
         .order('name');
 
       if (error) throw error;
 
-      const formattedProducts: Product[] = data.map(item => ({
+      const formattedProducts: Product[] = data.map((item: any) => ({
         id: item.id,
         name: item.name,
         costPrice: Number(item.cost_price),
@@ -72,7 +72,7 @@ export const useSupabasePOS = () => {
     if (!user) return;
 
     try {
-      const { data: receiptsData, error } = await supabase
+      const { data: receiptsData, error } = await (supabase as any)
         .from('receipts')
         .select(`
           *,
@@ -86,21 +86,21 @@ export const useSupabasePOS = () => {
 
       if (error) throw error;
 
-      const formattedReceipts: Receipt[] = receiptsData.map(receipt => ({
+      const formattedReceipts: Receipt[] = receiptsData.map((receipt: any) => ({
         id: receipt.id,
         items: receipt.receipt_items.map((item: any) => ({
           product: {
-            id: item.products.id,
-            name: item.products.name,
-            costPrice: Number(item.products.cost_price),
-            sellPrice: Number(item.products.sell_price),
-            stock: item.products.stock,
-            barcode: item.products.barcode,
-            category: item.products.category,
-            isPhotocopy: item.products.is_photocopy
+            id: item.product_id || 'manual',
+            name: item.product_name,
+            costPrice: Number(item.cost_price),
+            sellPrice: Number(item.unit_price),
+            stock: 0,
+            barcode: '',
+            category: item.product_id ? (item.products?.category || '') : 'Manual',
+            isPhotocopy: item.products?.is_photocopy || false
           },
           quantity: item.quantity,
-          finalPrice: item.final_price ? Number(item.final_price) : undefined
+          finalPrice: item.final_price ? Number(item.final_price) : Number(item.unit_price)
         })),
         subtotal: Number(receipt.subtotal),
         discount: Number(receipt.discount),
@@ -119,7 +119,7 @@ export const useSupabasePOS = () => {
 
   const addProduct = async (productData: Omit<Product, 'id'>) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('products')
         .insert({
           name: productData.name,
@@ -150,7 +150,7 @@ export const useSupabasePOS = () => {
       if (updates.category !== undefined) updateData.category = updates.category;
       if (updates.isPhotocopy !== undefined) updateData.is_photocopy = updates.isPhotocopy;
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('products')
         .update(updateData)
         .eq('id', productId);
@@ -176,12 +176,12 @@ export const useSupabasePOS = () => {
       );
 
       // Generate invoice number using the new function
-      const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number_v2', { 
+      const { data: invoiceNumber } = await (supabase as any).rpc('generate_invoice_number_v2', { 
         is_manual: isManual 
       });
 
       // Create receipt
-      const { data: receiptData, error: receiptError } = await supabase
+      const { data: receiptData, error: receiptError } = await (supabase as any)
         .from('receipts')
         .insert({
           user_id: user.id,
@@ -199,8 +199,8 @@ export const useSupabasePOS = () => {
 
       // Create receipt items
       const receiptItems = cart.map(item => ({
-        receipt_id: receiptData.id,
-        product_id: item.product.id,
+        receipt_id: receiptData!.id,
+        product_id: isManual && item.product.id.includes('manual') ? null : item.product.id,
         product_name: item.product.name,
         quantity: item.quantity,
         unit_price: item.finalPrice || item.product.sellPrice,
@@ -210,7 +210,7 @@ export const useSupabasePOS = () => {
         final_price: item.finalPrice
       }));
 
-      const { error: itemsError } = await supabase
+      const { error: itemsError } = await (supabase as any)
         .from('receipt_items')
         .insert(receiptItems);
 
@@ -225,13 +225,13 @@ export const useSupabasePOS = () => {
       }
 
       const receipt: Receipt = {
-        id: receiptData.id,
+        id: receiptData!.id,
         items: cart,
         subtotal,
         discount,
         total,
         profit,
-        timestamp: new Date(receiptData.created_at),
+        timestamp: new Date(receiptData!.created_at),
         paymentMethod
       };
 
