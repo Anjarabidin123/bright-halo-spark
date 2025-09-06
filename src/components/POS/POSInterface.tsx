@@ -44,6 +44,7 @@ export const POSInterface = () => {
     receipts,
     addProduct,
     updateProduct,
+    deleteProduct,
     addToCart,
     updateCartQuantity,
     removeFromCart,
@@ -458,9 +459,10 @@ Profit: ${formatPrice(receipt.profit)}
                 <StockManagement 
                   products={products}
                   onUpdateProduct={updateProduct}
+                  onDeleteProduct={deleteProduct}
                   formatPrice={formatPrice}
                   showLowStockOnly={false}
-                  readOnly={true}
+                  readOnly={false}
                 />
               </TabsContent>
               
@@ -468,9 +470,10 @@ Profit: ${formatPrice(receipt.profit)}
                 <StockManagement 
                   products={products}
                   onUpdateProduct={updateProduct}
+                  onDeleteProduct={deleteProduct}
                   formatPrice={formatPrice}
                   showLowStockOnly={true}
-                  readOnly={true}
+                  readOnly={false}
                 />
               </TabsContent>
             </Tabs>

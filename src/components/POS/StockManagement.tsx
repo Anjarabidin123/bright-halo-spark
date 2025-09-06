@@ -9,7 +9,8 @@ import {
   Search,
   AlertTriangle,
   Plus,
-  Minus
+  Minus,
+  Trash2
 } from 'lucide-react';
 import { Product } from '@/types/pos';
 import { getUnitOptions } from '@/lib/units';
@@ -18,6 +19,7 @@ import { QuantitySelector } from './QuantitySelector';
 interface StockManagementProps {
   products: Product[];
   onUpdateProduct: (productId: string, updates: Partial<Product>) => void;
+  onDeleteProduct?: (productId: string) => void;
   formatPrice: (price: number) => string;
   showLowStockOnly?: boolean;
   readOnly?: boolean;
@@ -26,6 +28,7 @@ interface StockManagementProps {
 export const StockManagement = ({ 
   products, 
   onUpdateProduct, 
+  onDeleteProduct,
   formatPrice,
   showLowStockOnly = false,
   readOnly = false
@@ -184,6 +187,17 @@ export const StockManagement = ({
                     >
                       <Plus className="h-3 w-3" />
                     </Button>
+                    {onDeleteProduct && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => onDeleteProduct(product.id)}
+                        className="h-7 w-7 p-0 ml-1"
+                        title="Hapus produk"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>

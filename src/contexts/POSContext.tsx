@@ -11,6 +11,7 @@ interface POSContextType {
   loading?: boolean;
   addProduct: (product: Omit<Product, 'id'>) => void | Promise<void>;
   updateProduct: (productId: string, updates: Partial<Product>) => void | Promise<void>;
+  deleteProduct?: (productId: string) => void | Promise<void>;
   addToCart: (product: Product, quantity?: number, customPrice?: number) => void;
   updateCartQuantity: (productId: string, quantity: number, finalPrice?: number) => void;
   removeFromCart: (productId: string) => void;
